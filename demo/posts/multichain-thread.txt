@@ -1,0 +1,34 @@
+Blinkbox now runs on every chain @PayBox supports. 11 chains, one Telegram chat, your own wallet signs.
+
+> USDC for everything, gas included, on @arc
+> Bridge Base → Arc → Solana in one tap
+> Base memes, safety-checked
+> Yield on @solana
+
+t.me/BlinkboxPaybot
+---
+> USDC-only payments
+On @arc by @circle, gas is paid in USDC. One token for the payment and the fee.
+
+> Bridge
+Move USDC between any two of the 11 chains: @base → @arc, Base → @solana, Solana → Arc. Routed by @lifiprotocol; you see what lands and the fee first.
+---
+> Memes on @base
+Trending Base tokens, filtered: no honeypots, taxes under 5%, verified code, owner can't mint or blacklist. Buy with USDC or ETH, sell back to USDC.
+
+> @solana
+Swaps, hot tokens, and the best live yields from Kamino, Jupiter Lend and more.
+---
+> Every EVM chain on @PayBox
+@ethereum @arbitrum @Optimism @0xPolygon @BNBCHAIN @avax @HyperliquidX @RobinhoodCrypto, plus @base and @arc. One address, dollar sends on all of them.
+
+> Naira in and out
+Buy USDC by bank transfer, cash out to 174 Nigerian banks via @paycrest.
+---
+> Guard on every transaction
+Simulates first, spend limits, blocks drainers, pins every swap and bridge to LI.FI's own contract, exact-amount approvals only.
+
+Code is open: github.com/0xkenichi/blinkbox
+Try it: t.me/BlinkboxPaybot
+
+@moonpay @PayBox

@@ -1,0 +1,17 @@
+Copyright (c) 2026 Kenichi (@0xKenichi). All rights reserved.
+
+This repository is published so people can read, review and verify how
+Blinkbox works. That is the only permission granted.
+
+You may not copy, modify, distribute, sublicense, host, or use this code or
+any part of it, in source or compiled form, for any purpose, without prior
+written permission from the copyright holder.
+
+Third-party packages listed in package.json and package-lock files keep their
+own licenses.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.
+
+For permission, reach out on X: https://x.com/0xKenichi

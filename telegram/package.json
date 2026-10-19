@@ -2,6 +2,7 @@
   "name": "blinkbox-telegram",
   "version": "0.1.0",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "description": "Telegram bot that lets anyone run Solana blinks with their own PayBox wallet.",
   "scripts": {

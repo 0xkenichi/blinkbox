@@ -122,4 +122,4 @@ Found something? Please don't open a public issue. See [SECURITY.md](SECURITY.md
 
 ## License
 
-See [LICENSE](LICENSE).
+All rights reserved. The code is public so you can read and verify it, not reuse it. Want to build on it? Ask me on X. Details in [LICENSE](LICENSE).
