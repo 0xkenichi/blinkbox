@@ -1,0 +1,25 @@
+# deps and builds
+node_modules/
+dist/
+
+# secrets: never commit these
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.vercel/
+
+# local PayBox CLI state (session tokens, paired signing keys)
+.paybox/
+paybox-cli/
+
+# heavy demo renders live on X, not in git
+demo/*.mp4
+demo/*.mp3
+demo/*.wav
+
+.DS_Store
+
+# raw screen captures used to render the films (they show my own Telegram)
+demo/shots/

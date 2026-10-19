@@ -1,0 +1,19 @@
+[Unit]
+Description=Blinkbox Telegram bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=opc
+WorkingDirectory=/home/opc/blinkbox
+Environment=BLINKBOX_BOT_DATA=/home/opc/.blinkbox-bot
+Environment=PATH=/home/opc/node/bin:/usr/bin:/bin
+ExecStart=/home/opc/node/bin/node --max-old-space-size=256 dist/bot.mjs
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

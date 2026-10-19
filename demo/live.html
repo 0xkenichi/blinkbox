@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blinkbox Live Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f0d; --bg-2: #0e1512; --panel: #121a17; --line: #22302a;
+    --ink: #e8efeb; --muted: #8b9b94; --accent: #3ee39c; --danger: #e5574f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; background: var(--bg); overflow: hidden; }
+  body { font-family: Manrope, system-ui, sans-serif; color: var(--ink); }
+  #stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; overflow: hidden;
+    background: radial-gradient(1400px 900px at 50% 45%, var(--bg-2), var(--bg) 70%); }
+  .abs { position: absolute; left: 0; top: 0; will-change: transform, opacity; }
+  .mono { font-family: "JetBrains Mono", monospace; }
+  .frame { overflow: hidden; border-radius: 28px; border: 1px solid var(--line); box-shadow: 0 40px 120px rgba(0,0,0,.55); }
+  .frame img { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .hl { position: absolute; border: 5px solid var(--accent); border-radius: 20px; }
+  .cap { width: 480px; }
+  .cap h2 { font-size: 70px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.02; }
+  .cap p { font-size: 32px; font-weight: 600; color: var(--muted); margin-top: 22px; line-height: 1.35; }
+  .live { display: inline-flex; align-items: center; gap: 14px; font: 700 26px "JetBrains Mono", monospace; color: var(--muted); }
+  .live i { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); display: inline-block; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="intro" class="abs" style="width:1920px;text-align:center;top:0">
+    <div class="live" style="justify-content:center"><i></i>LIVE ON SOLANA MAINNET</div>
+    <div style="font-size:120px;font-weight:800;letter-spacing:-0.045em;margin-top:28px">Blinkbox on Telegram</div>
+    <div style="font-size:40px;font-weight:600;color:var(--muted);margin-top:22px">A real run. Nothing staged.</div>
+  </div>
+  <div id="shots"></div>
+  <div id="end" class="abs" style="width:1920px;text-align:center">
+    <svg width="200" height="200" viewBox="0 0 100 100" style="overflow:visible">
+      <path d="M16 40 V72 Q16 86 30 86 H70 Q84 86 84 72 V40" fill="none" stroke="#e8efeb" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="30" y="56" width="40" height="11.5" rx="5.75" fill="#3ee39c" transform="rotate(-14 50 61.5)"/>
+    </svg>
+    <div style="font-size:120px;font-weight:800;letter-spacing:-0.045em;margin-top:6px">Blinkbox</div>
+    <div class="mono" style="font-size:52px;font-weight:700;margin-top:26px">t.me/BlinkboxPaybot</div>
+    <div style="font-size:36px;font-weight:600;color:var(--muted);margin-top:26px">All you need is Telegram and a PayBox account.</div>
+  </div>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+const stage = $("stage");
+const fit = () => { const s = Math.min(innerWidth / 1920, innerHeight / 1080); stage.style.transform = `translate(-50%,-50%) scale(${s})`; };
+addEventListener("resize", fit); fit();
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const out3 = (p) => 1 - Math.pow(1 - p, 3);
+const in3 = (p) => p * p * p;
+const tw = (t, t0, d, e = out3) => e(clamp((t - t0) / d));
+const mix = (a, b, p) => a + (b - a) * p;
+
+// Real screenshots from the run, cropped to the chat. crop = [x, y, w, h] in screenshot pixels,
+// hl = the part to point at, in the same pixels.
+const SHOTS = [
+  { img: "s1.jpg", crop: [545, 230, 490, 320], hl: [550, 327, 790, 547], title: "Open the bot.", sub: "Everything is a button: send, swap, hot tokens, predictions, earn." },
+  { img: "s2.jpg", crop: [545, 64, 490, 486], hl: [550, 78, 1030, 336], title: "Guard is on.", sub: "Spending limits, plus the checks that stop wallet drainers." },
+  { img: "s3.jpg", crop: [545, 315, 705, 235], hl: [550, 455, 930, 547], title: "Shady link? Refused.", sub: "Checked against the Dialect blink registry first.", danger: true },
+  { img: "s4.jpg", crop: [545, 235, 705, 315], hl: [550, 390, 1030, 462], title: "Wrong address? Blocked.", sub: "That's a token address. Money sent there is lost.", danger: true },
+  { img: "s5.jpg", crop: [545, 225, 490, 325], hl: [552, 268, 1028, 376], title: "See it before you sign.", sub: "Guard simulates it and shows what really leaves your wallet." },
+  { img: "s6.jpg", crop: [545, 90, 490, 460], hl: [550, 432, 835, 506], title: "Confirmed.", sub: "Signed with PayBox. Only your wallet signs." },
+  { img: "s7.jpg", crop: [545, 225, 490, 325], hl: [552, 330, 1024, 374], title: "Twice by mistake?", sub: "Guard catches the duplicate and asks first." },
+  { img: "s8.jpg", crop: [10, 70, 1400, 400], hl: [24, 237, 1396, 460], title: "Check it yourself.", sub: "solscan.io/tx/2DLCTY…K124G", wide: true },
+];
+const INTRO = 3.2, EACH = 4.6, OUTRO = 5.5;
+const TOTAL = INTRO + SHOTS.length * EACH + OUTRO;
+window.totalMs = () => TOTAL * 1000 - 1500;
+
+// Build each shot: caption on the left, cropped screenshot on the right.
+SHOTS.forEach((s, i) => {
+  const [cx, cy, cw, ch] = s.crop;
+  const scale = s.wide ? 1680 / cw : Math.min(860 / ch, 1150 / cw);
+  const fw = cw * scale, fh = ch * scale;
+  const fx = s.wide ? 120 : 1920 - fw - 110, fy = s.wide ? 400 : (1080 - fh) / 2;
+  s.layout = { fx, fy };
+  const g = document.createElement("div");
+  g.className = "abs"; g.id = `g${i}`;
+  g.innerHTML = `
+    <div class="abs frame" id="f${i}" style="width:${fw}px;height:${fh}px;transform:translate(${fx}px,${fy}px)">
+      <img src="shots/${s.img}" style="width:${1420 * scale}px;transform:translate(${-cx * scale}px,${-cy * scale}px)">
+      <div class="hl" id="h${i}" style="left:${(s.hl[0] - cx) * scale - 8}px;top:${(s.hl[1] - cy) * scale - 8}px;width:${(s.hl[2] - s.hl[0]) * scale + 16}px;height:${(s.hl[3] - s.hl[1]) * scale + 16}px;border-color:${s.danger ? "var(--danger)" : "var(--accent)"}"></div>
+    </div>
+    <div class="abs cap" id="c${i}" style="${s.wide ? "width:1680px" : ""}">
+      <h2 style="color:${s.danger ? "var(--danger)" : i === 5 || i === 7 ? "var(--accent)" : "var(--ink)"}">${s.title}</h2>
+      <p class="${s.wide ? "mono" : ""}">${s.sub}</p>
+    </div>`;
+  $("shots").appendChild(g);
+});
+
+function render(t) {
+  const io = tw(t, -0.2, 0.7) * (1 - tw(t, INTRO - 0.5, 0.5, in3));
+  $("intro").style.transform = `translateY(${360 + mix(30, 0, tw(t, -0.2, 0.7)) - 20 * tw(t, INTRO - 0.5, 0.5, in3)}px)`;
+  $("intro").style.opacity = io;
+
+  SHOTS.forEach((s, i) => {
+    const a = INTRO + i * EACH, b = a + EACH;
+    const g = $(`g${i}`);
+    if (t < a - 0.1 || t > b + 0.1) { g.style.opacity = 0; return; }
+    const pin = tw(t, a, 0.6), pout = tw(t, b - 0.45, 0.45, in3);
+    g.style.opacity = pin * (1 - pout);
+    const { fx, fy } = s.layout;
+    const zoom = 1 + 0.025 * clamp((t - a) / EACH);
+    const f = $(`f${i}`);
+    f.style.transform = `translate(${fx}px,${fy + mix(50, 0, pin) - 20 * pout}px) scale(${zoom})`;
+    f.style.transformOrigin = "50% 50%";
+    const h = $(`h${i}`);
+    const hp = tw(t, a + 0.9, 0.5);
+    h.style.opacity = hp;
+    h.style.transform = `scale(${mix(1.06, 1, hp)})`;
+    const c = $(`c${i}`);
+    const cp = tw(t, a + 0.25, 0.6);
+    const capY = s.wide ? 150 : 540 - c.offsetHeight / 2;
+    c.style.transform = `translate(${s.wide ? 120 : 130}px,${capY + mix(28, 0, cp)}px)`;
+    c.style.opacity = cp * (1 - pout);
+  });
+
+  const e0 = INTRO + SHOTS.length * EACH;
+  const ep = tw(t, e0, 0.8);
+  $("end").style.opacity = ep;
+  $("end").style.transform = `translateY(${250 + mix(30, 0, ep)}px)`;
+}
+window.renderAt = (ms) => render(ms / 1000);
+render(0);
+</script>
+</body>
+</html>

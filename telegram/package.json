@@ -1,0 +1,17 @@
+{
+  "name": "blinkbox-telegram",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Telegram bot that lets anyone run Solana blinks with their own PayBox wallet.",
+  "scripts": {
+    "build": "esbuild bot.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/bot.mjs --external:@paybox-sh/sdk",
+    "start": "node dist/bot.mjs"
+  },
+  "dependencies": {
+    "@paybox-sh/sdk": "2.2.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

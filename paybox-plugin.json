@@ -1,0 +1,6 @@
+{
+  "tool": "inspect_blink",
+  "arguments": {
+    "url": "https://dial.to/?action=solana-action:https://jupiter.dial.to/api/v0/swap/SOL-USDC"
+  }
+}

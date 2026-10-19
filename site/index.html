@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blinkbox · your crypto wallet, inside Telegram</title>
+<meta name="description" content="Send, swap, buy with naira, cash out to your bank and run any Solana blink from Telegram. Every transaction is checked by Guard and signed only by your PayBox passkey.">
+<meta property="og:title" content="Blinkbox · your crypto wallet, inside Telegram">
+<meta property="og:description" content="Send, swap, cash out to your bank and run any Solana blink from a Telegram chat. Signed only by your PayBox passkey.">
+<meta property="og:image" content="https://blinkbox-ten.vercel.app/assets/poster.jpg">
+<meta property="og:url" content="https://blinkbox-ten.vercel.app/">
+<meta name="twitter:image" content="https://blinkbox-ten.vercel.app/assets/poster.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0a0f0d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230a0f0d'/%3E%3Cpath d='M22 42 V68 Q22 80 34 80 H66 Q78 80 78 68 V42' fill='none' stroke='%23e8efeb' stroke-width='10' stroke-linecap='round'/%3E%3Crect x='32' y='54' width='36' height='11' rx='5.5' fill='%233ee39c' transform='rotate(-14 50 59.5)'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0a0f0d; --bg-2: #0e1512; --panel: #121a17; --panel-2: #17211d; --line: #22302a;
+    --ink: #e8efeb; --muted: #8b9b94; --faint: #56665f; --accent: #3ee39c; --accent-ink: #062016; --danger: #e5574f;
+    --tg: #8774e1; --tg-btn: #2b2140;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--ink); font-family: Manrope, system-ui, sans-serif; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  .mono { font-family: "JetBrains Mono", monospace; }
+  .wrap { width: min(1120px, 100% - 32px); margin-inline: auto; }
+  section { padding: 88px 0; }
+  h2 { font-size: clamp(30px, 4vw, 44px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
+  .lead { color: var(--muted); font-size: 18px; margin-top: 14px; max-width: 60ch; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 999px; font-weight: 800; text-decoration: none; font-size: 16px; transition: transform .15s ease, background .15s ease; }
+  .btn:active { transform: scale(.98); }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { background: #5cf0b0; }
+  .btn-ghost { border: 1px solid var(--line); color: var(--ink); }
+  .btn-ghost:hover { background: var(--panel); }
+
+  /* Nav */
+  nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; letter-spacing: -0.02em; text-decoration: none; }
+  .nav-links { display: flex; gap: 22px; align-items: center; font-weight: 600; color: var(--muted); font-size: 15px; }
+  .nav-links a { text-decoration: none; }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-links .btn { padding: 9px 16px; font-size: 14px; color: var(--accent-ink); }
+  @media (max-width: 760px) { .nav-links a:not(.btn) { display: none; } }
+
+  /* Hero */
+  .hero { padding: 72px 0 56px; background: radial-gradient(900px 500px at 75% 20%, rgba(62,227,156,.08), transparent 70%); }
+  .hero .wrap { display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; }
+  .hero h1 { font-size: clamp(40px, 6vw, 68px); font-weight: 800; letter-spacing: -0.045em; line-height: 1.02; }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p { color: var(--muted); font-size: 19px; margin: 20px 0 30px; max-width: 34em; }
+  .ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+  .trust { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 26px; color: var(--muted); font-size: 14px; font-weight: 600; }
+  .trust span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-right: 8px; vertical-align: 1px; }
+  @media (max-width: 900px) { .hero .wrap { grid-template-columns: 1fr; } .phone { margin-inline: auto; } }
+
+  /* Telegram-style phone */
+  .phone { width: min(380px, 100%); background: #0f0f15; border: 1px solid #262636; border-radius: 34px; padding: 14px; box-shadow: 0 40px 120px rgba(0,0,0,.55); }
+  .tg-head { display: flex; align-items: center; gap: 10px; padding: 8px 10px 14px; border-bottom: 1px solid #22222f; }
+  .tg-ava { width: 38px; height: 38px; border-radius: 50%; background: var(--panel-2); display: grid; place-items: center; flex: none; }
+  .tg-head b { font-size: 15px; display: block; }
+  .tg-head small { color: #8a8aa0; font-size: 12px; }
+  .tg-body { padding: 14px 4px 4px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+  .msg { background: #212030; border-radius: 14px 14px 14px 4px; padding: 10px 12px; max-width: 92%; }
+  .msg.me { align-self: flex-end; background: var(--tg); border-radius: 14px 14px 4px 14px; color: #fff; }
+  .msg .t { display: block; text-align: right; color: #8a8aa0; font-size: 11px; margin-top: 2px; }
+  .kbd { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; max-width: 92%; }
+  .kbd span { background: var(--tg-btn); border-radius: 8px; padding: 8px 6px; text-align: center; font-size: 13px; font-weight: 700; color: #ece9ff; }
+  .kbd span.on { background: var(--accent); color: var(--accent-ink); }
+  .ok { color: var(--accent); font-weight: 800; }
+
+
+  /* 3D mark */
+  .mark3d-wrap { position: relative; aspect-ratio: 1 / 1; width: min(520px, 100%); margin-inline: auto; }
+  #mark3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .mark-fallback { position: absolute; inset: 18%; opacity: 0; transition: opacity .4s ease; }
+  .no-webgl .mark-fallback { opacity: 1; }
+
+  /* Scroll story */
+  .story { position: relative; height: 340vh; padding: 0; }
+  .story-sticky { position: sticky; top: 64px; height: calc(100vh - 64px); display: flex; align-items: center; overflow: hidden; }
+  .story-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+  .story-steps { list-style: none; margin-top: 28px; display: grid; gap: 14px; counter-reset: s; }
+  .story-steps li { counter-increment: s; padding: 16px 18px 16px 58px; border-radius: 16px; border: 1px solid var(--line); background: var(--panel); position: relative; opacity: .38; transform: translateX(-6px); transition: opacity .35s ease, transform .35s ease, border-color .35s ease; }
+  .story-steps li::before { content: attr(data-n); position: absolute; left: 16px; top: 16px; width: 28px; height: 28px; border-radius: 50%; background: var(--panel-2); color: var(--muted); font-weight: 800; display: grid; place-items: center; font-size: 14px; transition: background .35s ease, color .35s ease; }
+  .story-steps li b { display: block; font-size: 17px; }
+  .story-steps li span { color: var(--muted); font-size: 14.5px; }
+  .story-steps li.on { opacity: 1; transform: none; border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+  .story-steps li.on::before { background: var(--accent); color: var(--accent-ink); }
+  .stage3d { perspective: 1400px; display: grid; place-items: center; }
+  #storyPhone { transform-style: preserve-3d; will-change: transform; transform-origin: center center; }
+  .tg-body .b { opacity: 0; transform: translateY(14px) scale(.98); transition: opacity .4s ease, transform .4s cubic-bezier(.2,.8,.2,1); }
+  .tg-body .b.in { opacity: 1; transform: none; }
+  @media (max-width: 860px) {
+    .story { height: 300vh; }
+    .story-sticky { align-items: flex-start; padding-top: 18px; }
+    .stage3d { place-items: start center; }
+    #storyPhone { transform-origin: top center; }
+    .story-grid { grid-template-columns: 1fr; gap: 14px; }
+    .story-steps { margin-top: 12px; gap: 0; }
+    .story-steps li { display: none; }
+    .story-steps li.current { display: block; opacity: 1; transform: none; }
+    .story-text h2 { font-size: 26px; }
+    #storyPhone { width: min(330px, 100%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .story { height: auto; }
+    #storyPhone { height: auto; }
+    .story-sticky { position: static; height: auto; padding: 88px 0; }
+    .story-steps li { opacity: 1; transform: none; display: block !important; }
+    .tg-body .b { opacity: 1; transform: none; transition: none; }
+
+  }
+
+  /* Hero scene */
+  .hero { padding: 64px 0 40px; background: radial-gradient(700px 500px at 0% 0%, rgba(135,116,225,.07), transparent 70%), #0a0f0d; overflow: hidden; }
+  .hero .wrap { display: grid; grid-template-columns: 1.1fr .9fr; gap: 24px; align-items: center; }
+  .hero h1 { font-size: clamp(40px, 5.4vw, 64px); }
+  .scene { position: relative; aspect-ratio: 1 / 1; width: min(600px, 100%); margin-inline: auto; perspective: 900px; }
+  #mark3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block;  }
+  .mark-fallback { position: absolute; inset: 22%; opacity: 0; }
+  .scene::before { content: ""; position: absolute; left: 22%; right: 22%; top: 46%; height: 30%; border-radius: 50%; background: radial-gradient(closest-side, rgba(62,227,156,.42), rgba(62,227,156,.10) 60%, transparent); filter: blur(18px); opacity: var(--glow, 0); pointer-events: none; }
+  .scene::after { content: ""; position: absolute; left: 20%; right: 20%; bottom: 8%; height: 9%; border-radius: 50%; background: radial-gradient(closest-side, rgba(0,0,0,.55), transparent); filter: blur(6px); pointer-events: none; }
+  .no-webgl .mark-fallback { opacity: 1; }
+  .fcard { position: absolute; display: flex; gap: 12px; align-items: center; padding: 12px 16px; border-radius: 16px; background: rgba(18,26,23,.62); border: 1px solid rgba(232,239,235,.09); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 20px 50px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05); font-size: 14px; white-space: nowrap; will-change: transform; animation: bob 6s ease-in-out infinite; }
+  .fcard b { display: block; font-size: 14.5px; }
+  .fcard small { color: var(--muted); font-size: 12px; }
+  .f1 { top: 12%; left: -2%; }
+  .f2 { top: 44%; right: -6%; animation-delay: -2s; }
+  .f3 { bottom: 10%; left: 6%; animation-delay: -4s; }
+  @keyframes bob { 50% { translate: 0 -8px; } }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; display: inline-block; }
+  .dot.ok { background: var(--accent); box-shadow: 0 0 12px rgba(62,227,156,.8); }
+  .dot.bad { background: var(--danger); box-shadow: 0 0 12px rgba(229,87,79,.8); }
+  @media (max-width: 900px) { .hero .wrap { grid-template-columns: 1fr; } .f2 { right: 0; } .f1 { left: 0; } }
+  @media (max-width: 520px) { .fcard { padding: 9px 12px; font-size: 12px; } .fcard b { font-size: 13px; } .f2 { top: 52%; } }
+
+  /* Bento */
+  .bento { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin-top: 40px; }
+  .tile { position: relative; grid-column: span 2; background: linear-gradient(180deg, rgba(23,33,29,.9), rgba(16,23,20,.9)); border: 1px solid var(--line); border-radius: 24px; padding: 24px; overflow: hidden; transform-style: preserve-3d; transition: transform .25s ease, border-color .25s ease; isolation: isolate; }
+  .tile::before { content: ""; position: absolute; inset: 0; background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 0%), rgba(62,227,156,.10), transparent 45%); opacity: 0; transition: opacity .25s ease; z-index: -1; }
+  .tile:hover { border-color: rgba(62,227,156,.35); }
+  .tile:hover::before { opacity: 1; }
+  .tile h3 { font-size: 20px; letter-spacing: -0.02em; }
+  .tile p { color: var(--muted); font-size: 14.5px; margin-top: 8px; max-width: 46ch; }
+  .tag { position: absolute; top: 18px; right: 18px; font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 999px; background: rgba(62,227,156,.12); color: var(--accent); display: inline-flex; align-items: center; gap: 6px; }
+  .tag.soon { background: rgba(135,116,225,.15); color: #b3a6f5; }
+  .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .25; } }
+  .t-bank { grid-column: span 3; grid-row: span 2; display: flex; flex-direction: column; }
+  .t-bank .mini { margin-top: 22px; flex: 1; align-content: center; gap: 16px; }
+  .t-bank .pay .amt { font-size: 56px; }
+  .t-rates, .t-user { grid-column: span 3; }
+  .t-swap, .t-link { grid-column: span 3; }
+  .mini { margin-top: 20px; }
+  .pay { background: rgba(10,15,13,.6); border: 1px solid var(--line); border-radius: 18px; padding: 20px; display: grid; gap: 12px; }
+  .pay .amt { font-size: 44px; font-weight: 800; letter-spacing: -0.03em; }
+  .pay .acct { display: flex; justify-content: space-between; color: var(--muted); padding: 10px 14px; border-radius: 12px; background: var(--panel-2); }
+  .pay .verify { display: flex; gap: 10px; align-items: center; color: var(--muted); }
+  .pay .verify b { color: var(--ink); }
+  .pay .paybtn { background: var(--accent); color: var(--accent-ink); font-weight: 800; text-align: center; padding: 12px; border-radius: 12px; }
+  .pay .done { color: var(--accent); font-weight: 700; font-size: 14px; text-align: center; }
+  .rates { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+  .rates div { background: rgba(10,15,13,.6); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; }
+  .rates small { color: var(--muted); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  .rates b { display: block; font-size: 30px; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+  .handles { display: grid; gap: 8px; }
+  .handles .h { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-radius: 12px; background: rgba(10,15,13,.6); border: 1px solid var(--line); }
+  .ok-chip { font-size: 12px; font-weight: 800; color: var(--accent); }
+  .handles .arrow { color: var(--muted); padding-left: 4px; }
+  .scan { position: relative; height: 112px; border-radius: 14px; overflow: hidden; background: #e9ece6; }
+  .slip { position: absolute; inset: 14px 16px; color: #1b2320; display: grid; gap: 2px; font-size: 14px; }
+  .slip b { font-size: 15px; }
+  .scanline { position: absolute; left: 0; right: 0; height: 36px; background: linear-gradient(180deg, transparent, rgba(62,227,156,.55), transparent); animation: scan 2.6s ease-in-out infinite; }
+  @keyframes scan { 0% { top: -36px; } 100% { top: 112px; } }
+  .wave { height: 64px; display: flex; align-items: center; gap: 5px; }
+  .wave i { flex: 1; border-radius: 99px; background: linear-gradient(180deg, var(--accent), #2a9e6c); height: 30%; animation: wave 1.2s ease-in-out infinite; }
+  .wave i:nth-child(odd) { animation-delay: -.3s; } .wave i:nth-child(3n) { animation-delay: -.6s; } .wave i:nth-child(4n) { animation-delay: -.9s; }
+  @keyframes wave { 50% { height: 95%; } }
+  .swap { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-weight: 800; }
+  .swap span:not(.arr):not(.pill) { padding: 8px 14px; border-radius: 12px; background: rgba(10,15,13,.6); border: 1px solid var(--line); }
+  .swap .arr { color: var(--accent); }
+  .swap .pill { font-size: 12px; color: var(--accent); background: rgba(62,227,156,.1); padding: 6px 10px; border-radius: 999px; }
+  .links { display: grid; gap: 8px; }
+  .links div { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 12px; background: rgba(10,15,13,.6); border: 1px solid var(--line); font-size: 13.5px; }
+  .links small { margin-left: auto; color: var(--muted); }
+  @media (max-width: 960px) { .bento { grid-template-columns: repeat(2, 1fr); } .tile, .t-bank, .t-rates, .t-user, .t-swap, .t-link { grid-column: span 2; grid-row: auto; } .t-photo, .t-voice, .t-earn { grid-column: span 1; } }
+  @media (max-width: 560px) { .bento { grid-template-columns: 1fr; } .tile, .t-photo, .t-voice, .t-earn { grid-column: span 1; } }
+  @media (prefers-reduced-motion: reduce) { .fcard, .scanline, .wave i, .pulse { animation: none; } }
+
+  /* Steps */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 40px; }
+  .step { background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 26px; }
+  .step .n { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-weight: 800; display: grid; place-items: center; margin-bottom: 16px; }
+  .step h3 { font-size: 20px; letter-spacing: -0.02em; }
+  .step p { color: var(--muted); margin-top: 8px; }
+  @media (max-width: 860px) { .steps { grid-template-columns: 1fr; } }
+
+  /* Features */
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 40px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 22px; }
+  .card .ic { font-size: 24px; }
+  .card h3 { font-size: 17px; margin-top: 12px; letter-spacing: -0.01em; }
+  .card p { color: var(--muted); font-size: 14.5px; margin-top: 6px; }
+  .card code { font-size: 12.5px; color: var(--ink); background: var(--panel-2); padding: 1px 6px; border-radius: 6px; }
+  @media (max-width: 960px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
+
+  /* Guard */
+  .guard { background: var(--bg-2); border-block: 1px solid var(--line); }
+  .guard .wrap { display: grid; grid-template-columns: .9fr 1.1fr; gap: 48px; align-items: start; }
+  .checks { list-style: none; display: grid; gap: 12px; }
+  .checks li { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px 16px 50px; position: relative; color: var(--muted); }
+  .checks li b { color: var(--ink); display: block; }
+  .checks li::before { content: "✓"; position: absolute; left: 18px; top: 15px; width: 22px; height: 22px; border-radius: 50%; background: rgba(62,227,156,.15); color: var(--accent); font-weight: 800; display: grid; place-items: center; font-size: 13px; }
+  @media (max-width: 860px) { .guard .wrap { grid-template-columns: 1fr; } }
+
+  /* Film + proof */
+  video { width: 100%; border-radius: 22px; border: 1px solid var(--line); margin-top: 32px; background: #000; display: block; }
+  .proof { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 36px; }
+  .proof a { text-decoration: none; }
+  .proof .card { height: 100%; transition: border-color .15s ease; }
+  .proof .card:hover { border-color: var(--accent); }
+  .proof .amt { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+  .proof .tx { color: var(--accent); font-size: 13px; margin-top: 12px; display: block; word-break: break-all; }
+  .shot { width: 100%; border-radius: 18px; border: 1px solid var(--line); margin-top: 18px; display: block; }
+  @media (max-width: 860px) { .proof { grid-template-columns: 1fr; } }
+
+  /* FAQ */
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; margin-top: 10px; }
+  summary { cursor: pointer; font-weight: 700; font-size: 17px; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+  summary::after { content: "+"; color: var(--accent); font-weight: 800; }
+  details[open] summary::after { content: "–"; }
+  details p { color: var(--muted); margin-top: 10px; }
+  .faq { max-width: 820px; }
+
+  /* Footer CTA */
+  .end { text-align: center; }
+  .end p { color: var(--muted); margin: 14px auto 28px; max-width: 40em; font-size: 18px; }
+  footer { border-top: 1px solid var(--line); padding: 28px 0; color: var(--faint); font-size: 14px; }
+  footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top">
+      <svg width="30" height="30" viewBox="0 0 100 100" aria-hidden="true"><path d="M16 40 V72 Q16 86 30 86 H70 Q84 86 84 72 V40" fill="none" stroke="#e8efeb" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><rect x="30" y="56" width="40" height="11.5" rx="5.75" fill="#3ee39c" transform="rotate(-14 50 61.5)"/></svg>
+      Blinkbox
+    </a>
+    <div class="nav-links">
+      <a href="#story">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#proof">Proof</a>
+      <a href="#faq">FAQ</a>
+      <a class="btn btn-primary" href="https://t.me/BlinkboxPaybot">Open in Telegram</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <div class="hero-copy">
+      <h1>Your crypto wallet,<br><em>inside Telegram.</em></h1>
+      <p>Send to a <b>@username</b>, pay any Nigerian bank account, swap, and cash out to OPay, all by tapping buttons in a chat. Every transaction is checked by Guard and signed only by your PayBox passkey.</p>
+      <div class="ctas">
+        <a class="btn btn-primary" href="https://t.me/BlinkboxPaybot">Open @BlinkboxPaybot →</a>
+        <a class="btn btn-ghost" href="#story">See how it works</a>
+      </div>
+      <div class="trust"><span>You hold your keys</span><span>Solana mainnet</span><span>Built on PayBox</span></div>
+    </div>
+    <div class="scene" id="scene">
+      <canvas id="mark3d" aria-label="The Blinkbox logo as a glass box with a glowing green capsule inside"></canvas>
+      <svg class="mark-fallback" viewBox="0 0 100 100" aria-hidden="true"><path d="M16 40 V72 Q16 86 30 86 H70 Q84 86 84 72 V40" fill="none" stroke="#e8efeb" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><rect x="30" y="56" width="40" height="11.5" rx="5.75" fill="#3ee39c" transform="rotate(-14 50 61.5)"/></svg>
+      <div class="fcard f1" data-depth="38"><i class="dot ok"></i><div><b>₦13,520 paid</b><small>OPay ****1234 · 82s</small></div></div>
+      <div class="fcard f2" data-depth="60"><i class="dot bad"></i><div><b>Drainer blocked</b><small>Unlimited token approval refused</small></div></div>
+      <div class="fcard f3" data-depth="26"><i class="dot ok"></i><div><b>@ada sent you 5 USDC</b><small>Verified by Telegram</small></div></div>
+    </div>
+  </div>
+</header>
+
+<section class="story" id="story" aria-label="Watch a payment happen">
+  <div class="story-sticky">
+    <div class="wrap story-grid">
+      <div class="story-text">
+        <h2>Watch a payment happen</h2>
+        <ol class="story-steps">
+          <li data-step="0" data-n="1"><b>Tap Cash out</b><span>Pick an amount and your bank. Everything is a button.</span></li>
+          <li data-step="1" data-n="2"><b>See exactly what happens</b><span>The live rate, the naira you'll get, and what Guard measured leaving your wallet.</span></li>
+          <li data-step="2" data-n="3"><b>Approve with your passkey</b><span>Only your PayBox passkey can sign. Blinkbox never holds your keys.</span></li>
+          <li data-step="3" data-n="4"><b>Naira lands</b><span>Paid to your bank or OPay, usually within a couple of minutes.</span></li>
+        </ol>
+      </div>
+      <div class="stage3d">
+        <div class="phone" id="storyPhone" aria-label="Example Blinkbox chat in Telegram">
+          <div class="tg-head">
+            <div class="tg-ava"><svg width="22" height="22" viewBox="0 0 100 100"><path d="M16 40 V72 Q16 86 30 86 H70 Q84 86 84 72 V40" fill="none" stroke="#e8efeb" stroke-width="12" stroke-linecap="round"/><rect x="30" y="56" width="40" height="12" rx="6" fill="#3ee39c" transform="rotate(-14 50 61.5)"/></svg></div>
+            <div><b>Blinkbox</b><small>bot</small></div>
+          </div>
+          <div class="tg-body">
+            <div class="msg b" data-at="0">⚡ <b>Blinkbox</b><br>What would you like to do?</div>
+            <div class="kbd b" data-at="0">
+              <span>💸 Send</span><span>🔁 Swap</span>
+              <span>➕ Top up</span><span class="on">🏦 Cash out</span>
+              <span>🏧 Pay a bank</span><span>🛡 Guard</span>
+            </div>
+            <div class="msg me b" data-at="0.12">10 USDC → my OPay</div>
+            <div class="msg b" data-at="1">🏦 <b>Your cash-out</b><br>You send: <b>10 USDC</b><br>You receive: <b>₦13,520</b><br>🛡 Guard: about $10 leaves your wallet</div>
+            <div class="msg b" data-at="2">🔐 Approve in PayBox with your passkey</div>
+            <div class="msg b" data-at="2.35"><span class="ok">✅ Confirmed on Solana mainnet</span></div>
+            <div class="msg b" data-at="3"><span class="ok">✅ ₦13,520 paid</span> to OPay ****1234<span class="t">example amounts</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="start">
+  <div class="wrap">
+    <h2>Start in about a minute</h2>
+    <p class="lead">All you need is Telegram and a free PayBox account. No seed phrase to copy, no app to install.</p>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><h3>Open the bot</h3><p>Go to <a href="https://t.me/BlinkboxPaybot">@BlinkboxPaybot</a> on Telegram and tap <b>Start</b>.</p></div>
+      <div class="step"><div class="n">2</div><h3>Connect PayBox</h3><p>Tap <b>Connect PayBox</b>, sign in with Google, Apple or email (or create an account), then match the 8 emoji. Your keys stay in PayBox; Blinkbox never holds them.</p></div>
+      <div class="step"><div class="n">3</div><h3>Tap a button</h3><p>Pick what you want to do. You always see exactly what will happen first, and nothing moves until you tap <b>Confirm</b>.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <h2>Everything your money needs, in one chat</h2>
+    <p class="lead">Built for how people actually pay: bank accounts, usernames, and naira, with crypto doing the work underneath.</p>
+    <div class="bento">
+      <article class="tile t-bank">
+        <div class="tag">Live</div>
+        <h3>Pay any bank account</h3>
+        <p>Type an amount and an account number. The bank confirms the name before anything moves, and they get exact naira, paid from your USDC.</p>
+        <div class="mini pay">
+          <div class="amt">₦5,000</div>
+          <div class="acct"><span>OPay</span><span class="mono">801 ••• 5678</span></div>
+          <div class="verify"><i class="dot ok"></i>Bank says: <b>ADA OKAFOR</b></div>
+          <div class="paybtn">Pay ₦5,000</div>
+          <div class="done">✅ Paid in about 90 seconds</div>
+        </div>
+      </article>
+      <article class="tile t-rates">
+        <div class="tag"><i class="pulse"></i>Live rate</div>
+        <h3>Naira in, naira out</h3>
+        <div class="rates">
+          <div><small>Buy USDC</small><b id="rateBuy">₦—</b></div>
+          <div><small>Cash out</small><b id="rateSell">₦—</b></div>
+        </div>
+        <p>Per USDC, straight from Paycrest. Bank transfer in, cash out to 174 banks and wallets including OPay, Moniepoint and PalmPay.</p>
+      </article>
+      <article class="tile t-user">
+        <div class="tag">Live</div>
+        <h3>Pay a @username</h3>
+        <p>No more long addresses. Link your Telegram or X handle and anyone can pay you by name.</p>
+        <div class="mini handles">
+          <div class="h"><span class="mono">@stillkenichi</span><span class="ok-chip">Telegram ✓</span></div>
+          <div class="h"><span class="mono">@0xkenichi</span><span class="ok-chip">X post ✓</span></div>
+          <div class="arrow">→ <span class="mono">Fui8…Ahd9</span></div>
+        </div>
+      </article>
+      <article class="tile t-photo">
+        <div class="tag soon">Soon</div>
+        <h3>Snap to pay</h3>
+        <p>Send a photo of someone's bank details. Blinkbox reads it and the bank confirms the name.</p>
+        <div class="mini scan">
+          <div class="slip"><b>Access Bank</b><span class="mono">0123456789</span><span>A. OKAFOR</span></div>
+          <i class="scanline"></i>
+        </div>
+      </article>
+      <article class="tile t-voice">
+        <div class="tag soon">Soon</div>
+        <h3>Just say it</h3>
+        <p>Hold the mic: "send five thousand naira to my OPay". You still confirm every payment.</p>
+        <div class="mini wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </article>
+      <article class="tile t-earn">
+        <h3>Earn &amp; odds</h3>
+        <p>Live USDC yields on Kamino, Lulo and Jupiter, and live prediction-market odds.</p>
+        <div class="mini swap"><span>USDC</span><span class="arr">→</span><span class="pill">best live yield</span></div>
+      </article>
+      <article class="tile t-swap">
+        <h3>Swap &amp; hot tokens</h3>
+        <p>Best route on Solana through Jupiter. Trending tokens are screened for rug signals first: mint authority, thin liquidity, whale-held supply.</p>
+        <div class="mini swap"><span>SOL</span><span class="arr">→</span><span>USDC</span><span class="pill">best route · Jupiter</span></div>
+      </article>
+      <article class="tile t-link">
+        <h3>Check any link</h3>
+        <p>Paste a blink and see who's behind it before you run it, checked against the Dialect registry.</p>
+        <div class="mini links">
+          <div><i class="dot ok"></i><span class="mono">jupiter.dial.to</span><small>trusted</small></div>
+          <div><i class="dot bad"></i><span class="mono">actions.radius.art</span><small>malicious · refused</small></div>
+        </div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<section class="guard" id="guard">
+  <div class="wrap">
+    <div>
+      <h2>Guard checks every transaction</h2>
+      <p class="lead">Before anything reaches your passkey, Blinkbox simulates the transaction and looks for the tricks wallet drainers use. It's always on.</p>
+      <p class="lead" style="font-size:15px">Default limits: $25 per transaction, $100 per day. Change them any time with <span class="mono">/guard</span>.</p>
+    </div>
+    <ul class="checks">
+      <li><b>Drainer instructions refused</b>Token approvals, authority changes and wallet takeovers are blocked outright.</li>
+      <li><b>Real cost measured</b>It simulates first and shows what actually leaves your wallet, not just what a link claims.</li>
+      <li><b>Spending limits</b>Per-transaction and daily caps you control.</li>
+      <li><b>Double-payment stop</b>The same payment twice within 10 minutes needs an extra "yes, again".</li>
+      <li><b>Wrong-address protection</b>Sends to programs or token addresses (where money gets lost) are blocked.</li>
+      <li><b>Malicious links refused</b>Blinks flagged in the Dialect registry never get built.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="film">
+  <div class="wrap">
+    <h2>See it in 80 seconds</h2>
+    <video src="/assets/film.mp4" poster="/assets/poster.jpg" controls playsinline preload="none"></video>
+  </div>
+</section>
+
+<section id="proof" style="padding-top:24px">
+  <div class="wrap">
+    <h2>Real money, on Solana mainnet</h2>
+    <p class="lead">Not a mockup. Tap any card to check the transaction yourself on Solscan.</p>
+    <div class="proof">
+      <a href="https://solscan.io/tx/3koZcPbJQQUmViGVrtZmxdN4jjZAgszd6AvtD476HRDErNmp4WKqfM14Qjgz3pNu5UuhvwnktCNo3yqi833zgLZx"><div class="card"><div class="amt">₦2,000 → 1.45 USDC</div><p>Paid by bank transfer in Telegram; USDC arrived in the PayBox wallet minutes later.</p><span class="tx mono">3koZcPbJ…zgLZx ↗</span></div></a>
+      <a href="https://solscan.io/tx/4hVkUnkqFNuw7JmsWGX5RcyqeTY7k7ozCJooicQdC9gPxrm2Yi7PdnzXJ6voTDNdRVanNZ2iaRb76ypoVPDnCY5x"><div class="card"><div class="amt">1.65 USDC → ₦2,230</div><p>Cashed out to a Moniepoint account. Paid about 90 seconds after the transfer confirmed.</p><span class="tx mono">4hVkUnkq…DnCY5x ↗</span></div></a>
+      <a href="https://solscan.io/tx/2DLCTYWhk1tZye3KWBCgqV3DsTMz2fV6xbEtMukEa9BXpCG7eoYUiLn6JUvhaa4zMwMgMh5JNCEo6zkvmdhK124G"><div class="card"><div class="amt">Send, with Guard</div><p>A live run where a shady link was refused, a token address was blocked, and a real send went through.</p><span class="tx mono">2DLCTYWh…dhK124G ↗</span></div></a>
+    </div>
+    <img class="shot" src="/assets/naira-proof.jpg" alt="Telegram chat: buying USDC with naira, then cashing out to a bank account (personal details hidden)" loading="lazy">
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap faq">
+    <h2>Questions</h2>
+    <details><summary>Does Blinkbox hold my money or keys?</summary><p>No. Your wallet lives in PayBox, protected by your passkey. Blinkbox prepares transactions and PayBox signs them for you. Blinkbox can't move anything on its own, and you can disconnect it any time from the bot or from PayBox.</p></details>
+    <details><summary>What do I need to start?</summary><p>Telegram, a free PayBox account (sign in with Google, Apple or email), and a little SOL for network fees. About 0.01 SOL covers many transfers; each naira cash-out uses about 0.002 SOL.</p></details>
+    <details><summary>What does it cost?</summary><p>Blinkbox adds no fee. You pay Solana network fees (a fraction of a cent) and, for naira, the live Paycrest rate with their fee included. You see the exact amounts before you confirm.</p></details>
+    <details><summary>Can I use it in Nigeria?</summary><p>Yes. Buy USDC with naira by bank transfer, and cash out to any of 174 Nigerian banks and wallets, including OPay, Moniepoint and PalmPay. (Card top-ups through MoonPay aren't available to Nigerian residents.)</p></details>
+    <details><summary>Can I pay someone else's bank account?</summary><p>Yes. Tap <b>Pay a bank account</b>, enter the naira amount and their account number. The bank shows you the real account name first, then you approve with your passkey and they receive exactly that amount from your USDC. Bank payments can't be reversed, so only pay people you know.</p></details>
+    <details><summary>How do @username payments work?</summary><p>Link your Telegram username or X account in <span class="mono">/handles</span>. Telegram usernames are confirmed by Telegram itself, and X accounts by posting a one-time code. Anyone can then pay you by typing your @username, and you get a message when they do.</p></details>
+    <details><summary>I have an AI agent. Can it use Blinkbox?</summary><p>That's where Blinkbox started: it's also a PayBox plugin (currently in review for the PayBox marketplace) that lets agents like Claude and ChatGPT find and run Solana blinks with the same checks.</p></details>
+  </div>
+</section>
+
+<section class="end">
+  <div class="wrap">
+    <h2>Try it now</h2>
+    <p>Open the bot, connect PayBox, and send your first transaction in about a minute.</p>
+    <a class="btn btn-primary" href="https://t.me/BlinkboxPaybot">Open @BlinkboxPaybot →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>Blinkbox · built on <a href="https://paybox.sh">PayBox</a> for the MoonPay PayBox hackathon</span>
+    <span><a href="https://x.com/0xKenichi">@0xKenichi on X</a> · <a href="https://t.me/BlinkboxPaybot">Telegram bot</a></span>
+  </div>
+</footer>
+
+
+<script type="module">
+// Scroll story: the phone turns toward the reader and the chat plays out step by step.
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const story = document.getElementById("story");
+const phone = document.getElementById("storyPhone");
+const steps = [...document.querySelectorAll(".story-steps li")];
+const bubbles = [...document.querySelectorAll(".tg-body .b")];
+function onScroll() {
+  const r = story.getBoundingClientRect();
+  const total = story.offsetHeight - innerHeight;
+  const p = Math.min(1, Math.max(0, -r.top / Math.max(1, total))); // 0..1 through the section
+  const at = p * 4; // 0..4 across four steps
+  const step = Math.min(3, Math.floor(at));
+  steps.forEach((li, i) => { li.classList.toggle("on", i <= step); li.classList.toggle("current", i === step); });
+  bubbles.forEach((b) => b.classList.toggle("in", reduce || at >= Number(b.dataset.at)));
+  // Fit the phone inside the visible part of the sticky area.
+  const room = innerHeight - 64 - (innerWidth <= 860 ? document.querySelector(".story-text").offsetHeight + 40 : 48);
+  const k = Math.max(0.55, Math.min(1, room / phone.offsetHeight));
+  if (reduce) phone.style.transform = `scale(${k.toFixed(3)})`;
+  else {
+    const turn = Math.sin(Math.min(1, p * 1.6) * Math.PI / 2);
+    phone.style.transform = `scale(${k.toFixed(3)}) rotateY(${(-26 * (1 - turn)).toFixed(2)}deg) rotateX(${(10 * (1 - turn)).toFixed(2)}deg) translateZ(${(-60 * (1 - turn)).toFixed(1)}px)`;
+  }
+}
+addEventListener("scroll", onScroll, { passive: true });
+addEventListener("resize", onScroll);
+onScroll();
+</script>
+<script type="importmap">{"imports": {"three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+<script type="module">
+// Hero: the Blinkbox mark as frosted glass with a glowing capsule inside, studio-lit.
+import * as THREE from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+const scene3 = document.getElementById("scene");
+const canvas = document.getElementById("mark3d");
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const small = matchMedia("(max-width: 700px)").matches;
+
+// Floating product cards drift with the pointer at different depths.
+let px = 0, py = 0;
+addEventListener("pointermove", (e) => { px = e.clientX / innerWidth - 0.5; py = e.clientY / innerHeight - 0.5; }, { passive: true });
+const cards = [...document.querySelectorAll(".fcard")];
+
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" }); } catch { scene3.classList.add("no-webgl"); }
+if (renderer) {
+  renderer.setPixelRatio(Math.min(devicePixelRatio, small ? 1.5 : 2));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  renderer.setClearColor(0x000000, 0);
+  const scene = new THREE.Scene();
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 50);
+  camera.position.set(0, 0.35, 8.2);
+
+  const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(3, 5, 4); scene.add(key);
+  const rim = new THREE.DirectionalLight(0xbfeedd, 1.1); rim.position.set(-5, 2, -4); scene.add(rim);
+  const inner = new THREE.PointLight(0x3ee39c, 0, 5, 1.6); inner.position.set(0, -0.55, 0.3); scene.add(inner);
+
+  const mark = new THREE.Group(); scene.add(mark);
+  const v = (x, y) => new THREE.Vector3(x, y, 0);
+  const path = new THREE.CurvePath();
+  path.add(new THREE.LineCurve3(v(-1.35, 0.8), v(-1.35, -0.5)));
+  path.add(new THREE.QuadraticBezierCurve3(v(-1.35, -0.5), v(-1.35, -1.1), v(-0.75, -1.1)));
+  path.add(new THREE.LineCurve3(v(-0.75, -1.1), v(0.75, -1.1)));
+  path.add(new THREE.QuadraticBezierCurve3(v(0.75, -1.1), v(1.35, -1.1), v(1.35, -0.5)));
+  path.add(new THREE.LineCurve3(v(1.35, -0.5), v(1.35, 0.8)));
+  const tubeGeo = new THREE.TubeGeometry(path, 260, 0.2, 40, false);
+  const glass = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff, metalness: 0, roughness: 0.1, transmission: 1, thickness: 1.4, ior: 1.5,
+    attenuationColor: new THREE.Color(0xeaf6f0), attenuationDistance: 8, clearcoat: 1, clearcoatRoughness: 0.12,
+    envMapIntensity: 1.4, specularIntensity: 1,
+  });
+  const box = new THREE.Mesh(tubeGeo, glass); mark.add(box);
+  const ends = [-1.35, 1.35].map((x) => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.2, 40, 24), glass); m.position.set(x, 0.8, 0); mark.add(m); return m; });
+  const capsule = new THREE.Mesh(
+    new THREE.CapsuleGeometry(0.21, 1.1, 16, 32),
+    new THREE.MeshStandardMaterial({ color: 0x3ee39c, emissive: 0x3ee39c, emissiveIntensity: 0.55, roughness: 0.28 }),
+  );
+  capsule.rotation.z = Math.PI / 2 + 0.245;
+  mark.add(capsule);
+  // Faint reflective floor that fades out.
+  const floorTex = (() => {
+    const c = document.createElement("canvas"); c.width = c.height = 256;
+    const g = c.getContext("2d"); const r = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+    r.addColorStop(0, "rgba(62,227,156,0.10)"); r.addColorStop(0.45, "rgba(62,227,156,0.02)"); r.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = r; g.fillRect(0, 0, 256, 256); return new THREE.CanvasTexture(c);
+  })();
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(6, 6), new THREE.MeshBasicMaterial({ map: floorTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  floor.rotation.x = -Math.PI / 2; floor.position.y = -1.6;
+
+  // Soft glow around the capsule, drawn as an additive sprite (no post-processing, so the
+  // canvas stays transparent and blends into the page).
+  const glowTex = (() => {
+    const c = document.createElement("canvas"); c.width = c.height = 256;
+    const g = c.getContext("2d"); const r = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+    r.addColorStop(0, "rgba(62,227,156,0.55)"); r.addColorStop(0.35, "rgba(62,227,156,0.16)"); r.addColorStop(1, "rgba(62,227,156,0)");
+    g.fillStyle = r; g.fillRect(0, 0, 256, 256); return new THREE.CanvasTexture(c);
+  })();
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 }));
+  halo.scale.set(3.2, 2.0, 1);
+
+  const size = () => {
+    const w = scene3.clientWidth, h = scene3.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+  };
+  new ResizeObserver(size).observe(scene3); size();
+
+  const ease = (x) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
+  const easeIn = (x) => Math.pow(Math.min(1, Math.max(0, x)), 2.6);
+  const total = tubeGeo.index.count;
+  const t0 = performance.now();
+  let visible = true;
+  new IntersectionObserver(([e]) => { visible = e.isIntersecting; }).observe(scene3);
+
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const t = reduce ? 9 : (now - t0) / 1000;
+    cards.forEach((c, i) => {
+      const d = Number(c.dataset.depth) || 30;
+      c.style.transform = `translate3d(${(px * d).toFixed(1)}px, ${(py * d).toFixed(1)}px, 0) rotateY(${(px * 8).toFixed(2)}deg) rotateX(${(-py * 8).toFixed(2)}deg)`;
+      c.style.opacity = String(ease((t - 1.6 - i * 0.25) / 0.6));
+    });
+    if (!visible) return;
+    const draw = ease(t / 1.4);
+    tubeGeo.setDrawRange(0, Math.floor(total * draw / 6) * 6);
+    ends[0].visible = draw > 0.02; ends[1].visible = draw > 0.98;
+    const fall = easeIn((t - 1.05) / 0.75);
+    const settle = t > 1.8 ? Math.exp(-(t - 1.8) * 6) * Math.sin((t - 1.8) * 18) * 0.06 : 0;
+    capsule.position.set(0, 3.6 + (-0.62 - 3.6) * fall + settle + (t > 2.6 ? Math.sin(t * 1.4) * 0.03 : 0), 0);
+    capsule.visible = t > 1.0;
+    inner.intensity = 2.2 * ease((t - 1.75) / 0.8);
+    scene3.style.setProperty("--glow", (ease((t - 1.7) / 0.9) * (0.9 + Math.sin(t * 1.4) * 0.1)).toFixed(3));
+    const sc = Math.min(1, scrollY / 700);
+    mark.rotation.y += ((reduce ? -0.35 : -0.35 + px * 0.6 + Math.sin(t * 0.3) * 0.15) - mark.rotation.y) * 0.05;
+    mark.rotation.x += ((reduce ? 0.08 : 0.08 + py * 0.25 + sc * 0.3) - mark.rotation.x) * 0.05;
+    renderer.render(scene, camera);
+  }
+  requestAnimationFrame(frame);
+}
+
+// Live Paycrest rates for the features grid.
+const fmt = (n) => `₦${Math.round(n).toLocaleString("en-US")}`;
+fetch("https://api.paycrest.io/v2/rates/solana/USDC/10/NGN").then((r) => r.json()).then((d) => {
+  const buy = Number(d?.data?.buy?.rate), sell = Number(d?.data?.sell?.rate);
+  if (buy > 0) document.getElementById("rateBuy").textContent = fmt(buy);
+  if (sell > 0) document.getElementById("rateSell").textContent = fmt(sell);
+}).catch(() => {});
+
+// Tiles lean toward the pointer, with a soft light following it.
+if (!reduce && matchMedia("(hover: hover)").matches) {
+  for (const tile of document.querySelectorAll(".tile")) {
+    tile.addEventListener("pointermove", (e) => {
+      const r = tile.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+      tile.style.setProperty("--mx", `${x * 100}%`); tile.style.setProperty("--my", `${y * 100}%`);
+      tile.style.transform = `perspective(900px) rotateX(${((0.5 - y) * 6).toFixed(2)}deg) rotateY(${((x - 0.5) * 6).toFixed(2)}deg)`;
+    });
+    tile.addEventListener("pointerleave", () => { tile.style.transform = ""; });
+  }
+}
+</script>
+</body>
+</html>
