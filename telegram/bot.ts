@@ -1087,17 +1087,35 @@ const sameName = (a: string, b: string) => {
   return aw.length > 0 && aw.filter((w) => bw.has(w)).length >= Math.min(2, aw.length);
 };
 
-// ---------- EVM chains: Base and Arc. PayBox's EVM wallet has one address on every EVM chain,
-// so adding Polygon, Arbitrum, Optimism… is a new entry here plus testing. ----------
+// ---------- EVM chains: every EVM chain PayBox supports. PayBox's EVM wallet has one address
+// on all of them, so a chain is one entry here. ----------
 
-type EvmKey = "base" | "arc";
+type EvmKey = "base" | "arc" | "ethereum" | "arbitrum" | "optimism" | "polygon" | "bnb" | "avalanche" | "hyperevm" | "robinhood";
+// usdc: the chain's main dollar token (USDG on Robinhood Chain), with its decimals (18 on BNB).
 // gasIsUsdc: Arc pays fees in USDC itself (native balance at 18 decimals, the ERC-20 interface at 6),
 // so there is no second token to hold. minFeeWei: Arc's mempool ignores maxFeePerGas under 20 gwei.
-type EvmChain = { key: EvmKey; name: string; icon: string; chainId: number; rpc: string; usdc: string; explorer: string; gas: string; gasIsUsdc?: boolean; minFeeWei?: bigint };
-const EVM_CHAINS: Record<EvmKey, EvmChain> = {
-  base: { key: "base", name: "Base", icon: "🔵", chainId: 8453, rpc: process.env.BASE_RPC_URL ?? "https://mainnet.base.org", usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", explorer: "https://basescan.org", gas: "ETH" },
-  arc: { key: "arc", name: "Arc", icon: "🟣", chainId: 5042, rpc: process.env.ARC_RPC_URL ?? "https://rpc.mainnet.arc.io", usdc: "0x3600000000000000000000000000000000000000", explorer: "https://explorer.arc.io", gas: "USDC", gasIsUsdc: true, minFeeWei: 20_000_000_000n },
+// lifi: LI.FI's contract on that chain. Guard refuses swap or bridge transactions sent anywhere else.
+type EvmChain = {
+  key: EvmKey; name: string; icon: string; chainId: number; rpc: string; usdc: string; stable: string; decimals: number;
+  explorer: string; gas: string; lifi: string; gasIsUsdc?: boolean; minFeeWei?: bigint;
 };
+const LIFI_DIAMOND = "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE";
+const evmChain = (c: Omit<EvmChain, "stable" | "decimals" | "lifi"> & Partial<EvmChain>): EvmChain => ({ stable: "USDC", decimals: 6, lifi: LIFI_DIAMOND, ...c });
+const EVM_CHAINS: Record<EvmKey, EvmChain> = {
+  base: evmChain({ key: "base", name: "Base", icon: "🔵", chainId: 8453, rpc: process.env.BASE_RPC_URL ?? "https://mainnet.base.org", usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", explorer: "https://basescan.org", gas: "ETH" }),
+  arc: evmChain({ key: "arc", name: "Arc", icon: "🟣", chainId: 5042, rpc: process.env.ARC_RPC_URL ?? "https://rpc.mainnet.arc.io", usdc: "0x3600000000000000000000000000000000000000", explorer: "https://explorer.arc.io", gas: "USDC", gasIsUsdc: true, minFeeWei: 20_000_000_000n, lifi: "0xA4072583658Fae592A3506A42431cb6316a8d40b" }),
+  ethereum: evmChain({ key: "ethereum", name: "Ethereum", icon: "💠", chainId: 1, rpc: process.env.ETHEREUM_RPC_URL ?? "https://ethereum-rpc.publicnode.com", usdc: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", explorer: "https://etherscan.io", gas: "ETH" }),
+  arbitrum: evmChain({ key: "arbitrum", name: "Arbitrum", icon: "🔷", chainId: 42161, rpc: process.env.ARBITRUM_RPC_URL ?? "https://arb1.arbitrum.io/rpc", usdc: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", explorer: "https://arbiscan.io", gas: "ETH" }),
+  optimism: evmChain({ key: "optimism", name: "Optimism", icon: "🔴", chainId: 10, rpc: process.env.OPTIMISM_RPC_URL ?? "https://mainnet.optimism.io", usdc: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85", explorer: "https://optimistic.etherscan.io", gas: "ETH" }),
+  polygon: evmChain({ key: "polygon", name: "Polygon", icon: "🟪", chainId: 137, rpc: process.env.POLYGON_RPC_URL ?? "https://polygon-bor-rpc.publicnode.com", usdc: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359", explorer: "https://polygonscan.com", gas: "POL" }),
+  bnb: evmChain({ key: "bnb", name: "BNB Chain", icon: "🟡", chainId: 56, rpc: process.env.BNB_RPC_URL ?? "https://bsc-dataseed.bnbchain.org", usdc: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", decimals: 18, explorer: "https://bscscan.com", gas: "BNB" }),
+  avalanche: evmChain({ key: "avalanche", name: "Avalanche", icon: "🔺", chainId: 43114, rpc: process.env.AVALANCHE_RPC_URL ?? "https://api.avax.network/ext/bc/C/rpc", usdc: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E", explorer: "https://snowtrace.io", gas: "AVAX" }),
+  hyperevm: evmChain({ key: "hyperevm", name: "HyperEVM", icon: "🟢", chainId: 999, rpc: process.env.HYPEREVM_RPC_URL ?? "https://rpc.hyperliquid.xyz/evm", usdc: "0xb88339CB7199b77E23DB6E890353E22632Ba630f", explorer: "https://hyperevmscan.io", gas: "HYPE", lifi: "0x0a0758d937d1059c356D4714e57F5df0239bce1A" }),
+  robinhood: evmChain({ key: "robinhood", name: "Robinhood Chain", icon: "🪶", chainId: 4663, rpc: process.env.ROBINHOOD_RPC_URL ?? "https://rpc.mainnet.chain.robinhood.com", usdc: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", stable: "USDG", explorer: "https://robin.etherscan.io", gas: "ETH", lifi: "0xB477751B76CF82d00a686A1232f5fCD772414Af3" }),
+};
+const EVM_ORDER: EvmKey[] = ["base", "arc", "ethereum", "arbitrum", "optimism", "polygon", "bnb", "avalanche", "hyperevm", "robinhood"];
+const NATIVE = "0x0000000000000000000000000000000000000000";
+
 type EvmWallet = { credentialId: string; address: string };
 const evmWallets = new Map<number, EvmWallet | null>();
 async function evmWallet(chatId: number): Promise<EvmWallet | null> {
@@ -1124,78 +1142,153 @@ const shortEvm = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const fmtGas = (wei: bigint) => (Number(wei) / 1e18).toFixed(7).replace(/0+$/, "").replace(/\.$/, "");
 // A fee in the chain's gas token, readable: "0.0024 USDC" on Arc, "0.0000021 ETH" on Base.
 const fmtFee = (chain: EvmChain, wei: bigint) => `${fmtGas(wei) || "<0.0000001"} ${chain.gas}`;
+const fmtUnits = (units: bigint, decimals: number, places = 6) => (Number(units) / 10 ** decimals).toFixed(places).replace(/0+$/, "").replace(/\.$/, "") || "0";
+const stableUnits = (chain: EvmChain, amount: number) => BigInt(Math.round(amount * 1e6)) * 10n ** BigInt(chain.decimals - 6);
+async function erc20Balance(chain: EvmChain, token: string, owner: string): Promise<bigint> {
+  return BigInt(await evmRpc(chain, "eth_call", [{ to: token, data: `0x70a08231${pad32(owner)}` }, "latest"]));
+}
 async function evmUsdc(chain: EvmChain, address: string): Promise<number> {
-  return Number(BigInt(await evmRpc(chain, "eth_call", [{ to: chain.usdc, data: `0x70a08231${pad32(address)}` }, "latest"]))) / 1e6;
+  return Number(await erc20Balance(chain, chain.usdc, address)) / 10 ** chain.decimals;
 }
 async function evmGasBalance(chain: EvmChain, address: string): Promise<bigint> {
   return BigInt(await evmRpc(chain, "eth_getBalance", [address, "latest"]));
 }
 
 type EvmTx = { to: string; data: string; value: string; chainId: number; gas: string; maxFeePerGas: string; maxPriorityFeePerGas: string; nonce: number };
-type EvmBuilt = { tx: EvmTx; feeWei: bigint; amount: number; to: string };
+// One call to make from the user's wallet. gas is set when it can't be estimated yet
+// (a swap that needs the approval before it in the same batch).
+type EvmCall = { to: string; data: string; value?: bigint; gas?: bigint; what: string };
+type EvmBatch = { txs: EvmTx[]; whats: string[]; feeWei: bigint };
 
-// A USDC transfer from the user's PayBox EVM wallet, with fresh nonce and fees.
-async function buildEvmUsdcTransfer(chain: EvmChain, from: string, to: string, amount: number): Promise<EvmBuilt | string> {
-  const units = BigInt(Math.round(amount * 1e6));
-  const data = `0xa9059cbb${pad32(to)}${units.toString(16).padStart(64, "0")}`;
+// Fresh nonce and fees for a batch of calls; checks the wallet can pay the gas.
+// spendUsdcUnits: USDC the batch moves, so on Arc (gas paid in USDC) both are checked together.
+async function prepareEvm(chain: EvmChain, from: string, calls: EvmCall[], spendUsdcUnits = 0n): Promise<EvmBatch | string> {
   try {
-    const [usdc, nonceHex, block, prioHex, gasBal] = await Promise.all([
-      evmUsdc(chain, from),
+    const [nonceHex, block, prioHex, gasPriceHex, gasBal] = await Promise.all([
       evmRpc(chain, "eth_getTransactionCount", [from, "pending"]),
       evmRpc(chain, "eth_getBlockByNumber", ["latest", false]),
       evmRpc(chain, "eth_maxPriorityFeePerGas", []).catch(() => "0xf4240"),
+      evmRpc(chain, "eth_gasPrice", []).catch(() => "0x0"),
       evmGasBalance(chain, from),
     ]);
-    if (usdc + 1e-9 < amount) return `Not enough USDC on ${chain.name}: you have ${usdc}, this needs ${amount}${chain.gasIsUsdc ? " plus a tiny USDC network fee" : ""}.`;
-    let gas: bigint;
-    try {
-      gas = (BigInt(await evmRpc(chain, "eth_estimateGas", [{ from, to: chain.usdc, data }])) * 12n) / 10n;
-    } catch (e) {
-      return `This transfer would fail on ${chain.name}: ${(e as Error).message}`;
-    }
-    const prio = BigInt(prioHex);
+    let prio = BigInt(prioHex);
     let maxFee = BigInt(block?.baseFeePerGas ?? "0x0") * 2n + prio;
+    if (maxFee < BigInt(gasPriceHex)) maxFee = BigInt(gasPriceHex); // chains without a real base fee (BNB)
     if (chain.minFeeWei && maxFee < chain.minFeeWei) maxFee = chain.minFeeWei;
-    const feeWei = gas * maxFee;
+    if (prio > maxFee) prio = maxFee;
+    const txs: EvmTx[] = [];
+    let feeWei = 0n, value = 0n;
+    const totalValue = calls.reduce((a, c) => a + (c.value ?? 0n), 0n);
+    if (!chain.gasIsUsdc && gasBal < totalValue) return `Not enough ${chain.gas} on ${chain.name}: you have ${fmtGas(gasBal) || "0"}, this needs ${fmtGas(totalValue)} ${chain.gas} plus network fees. Send some ${chain.gas} on ${chain.name} to ${from}.`;
+    for (const [i, c] of calls.entries()) {
+      let gas = c.gas;
+      if (gas === undefined) {
+        try {
+          gas = (BigInt(await evmRpc(chain, "eth_estimateGas", [{ from, to: c.to, data: c.data, value: `0x${(c.value ?? 0n).toString(16)}` }])) * 12n) / 10n;
+        } catch (e) {
+          const m = (e as Error).message;
+          if (/OutOfFunds|insufficient funds|exceeds balance/i.test(m)) return `Not enough funds on ${chain.name} for this (${c.what}): check your ${chain.stable} and ${chain.gas} balance in Wallet.`;
+          return `This would fail on ${chain.name} (${c.what}): ${m}`;
+        }
+      }
+      feeWei += gas * maxFee;
+      value += c.value ?? 0n;
+      txs.push({ to: c.to, data: c.data, value: (c.value ?? 0n).toString(), chainId: chain.chainId, gas: gas.toString(), maxFeePerGas: maxFee.toString(), maxPriorityFeePerGas: prio.toString(), nonce: Number(BigInt(nonceHex)) + i });
+    }
     // On Arc the fee comes out of the same USDC balance (18-decimal native units = 6-decimal USDC × 10¹²).
-    if (chain.gasIsUsdc) {
-      if (gasBal < BigInt(Math.round(amount * 1e6)) * 1_000_000_000_000n + feeWei) return `Not enough USDC on ${chain.name} to cover ${amount} USDC plus the network fee (about ${fmtFee(chain, feeWei)}). You have ${usdc}. Try a slightly smaller amount.`;
-    } else if (gasBal < feeWei) return `Not enough ${chain.gas} on ${chain.name} for the network fee: it needs about ${fmtGas(feeWei)} ${chain.gas} and your wallet has ${fmtGas(gasBal)}. Send a little ${chain.gas} on ${chain.name} (about $0.05 covers dozens of transfers) to ${from}.`;
-    return { tx: { to: chain.usdc, data, value: "0", chainId: chain.chainId, gas: gas.toString(), maxFeePerGas: maxFee.toString(), maxPriorityFeePerGas: prio.toString(), nonce: Number(BigInt(nonceHex)) }, feeWei, amount, to };
+    const needed = feeWei + value + (chain.gasIsUsdc ? spendUsdcUnits * 1_000_000_000_000n : 0n);
+    if (gasBal < needed) {
+      return chain.gasIsUsdc
+        ? `Not enough USDC on ${chain.name} to cover this plus the network fee (about ${fmtFee(chain, feeWei)}). Try a slightly smaller amount.`
+        : `Not enough ${chain.gas} on ${chain.name} for this: it needs about ${fmtGas(needed)} ${chain.gas} (network fee${value ? " plus the amount" : ""}) and your wallet has ${fmtGas(gasBal)}. Send a little ${chain.gas} on ${chain.name} to ${from}.`;
+    }
+    return { txs, whats: calls.map((c) => c.what), feeWei };
   } catch (e) {
     return `Couldn't reach ${chain.name}: ${(e as Error).message}`;
   }
 }
 
-// Guard for EVM sends: recipient sanity, the same spend limits, and double-payment protection.
-async function evmGuard(chatId: number, chain: EvmChain, b: EvmBuilt): Promise<GuardResult> {
-  const to = b.to.toLowerCase();
-  const fp = createHash("sha256").update(`evm|${chain.key}|${to}|${b.amount}`).digest("hex").slice(0, 16);
-  if (/^0x0{40}$/.test(to)) return { refused: "That's the zero address. Anything sent there is burned forever.", usd: b.amount, fp, lines: [] };
-  if (to === chain.usdc.toLowerCase()) return { refused: "That's the USDC token contract, not a wallet. Money sent there is lost.", usd: b.amount, fp, lines: [] };
+// Signs and sends each transaction in order with PayBox, waiting for each to land.
+// Returns the hashes, or a message saying where it stopped.
+async function runEvm(chatId: number, chain: EvmChain, w: EvmWallet, batch: EvmBatch): Promise<{ hashes: string[]; status: "confirmed" | "failed" | "pending"; stopped?: string }> {
+  const hashes: string[] = [];
+  for (const [i, tx] of batch.txs.entries()) {
+    const step = batch.txs.length > 1 ? ` (${i + 1} of ${batch.txs.length}: ${batch.whats[i]})` : "";
+    await send(chatId, `🔐 Sent to PayBox${step}. If it asks, approve in the PayBox app with your passkey within a minute.`);
+    const res = await runWorker(chatId, "signEvm", { credentialId: w.credentialId, transaction: tx });
+    const r = res.response;
+    if (!res.ok) return { hashes, status: "failed", stopped: `PayBox: ${res.error ?? "signing failed"}` };
+    if (r?.status === "denied") return { hashes, status: "failed", stopped: `Denied in PayBox${r.reason ? `: ${r.reason}` : ""}` };
+    const signed = r?.output?.value?.serializedTransaction;
+    if (!signed) return { hashes, status: "failed", stopped: `PayBox did not return a signed transaction (status: ${String(r?.status)})` };
+    let hash: string;
+    try { hash = await evmRpc(chain, "eth_sendRawTransaction", [signed]); } catch (e) {
+      return { hashes, status: "failed", stopped: `${chain.name} rejected it: ${(e as Error).message}` };
+    }
+    hashes.push(hash);
+    let status: "confirmed" | "failed" | "pending" = "pending";
+    for (let t = 0; t < 45 && status === "pending"; t++) {
+      await new Promise((res2) => setTimeout(res2, 2000));
+      const rc = await evmRpc(chain, "eth_getTransactionReceipt", [hash]).catch(() => null);
+      if (rc) status = rc.status === "0x1" ? "confirmed" : "failed";
+    }
+    if (status !== "confirmed") return { hashes, status, stopped: status === "failed" ? `${batch.whats[i]} failed on ${chain.name}` : `${batch.whats[i]} is taking a while to confirm` };
+  }
+  return { hashes, status: "confirmed" };
+}
+const evmLink = (chain: EvmChain, hash: string) => ({ text: `View on ${chain.explorer.replace("https://", "")}`, url: `${chain.explorer}/tx/${hash}` });
+
+// Guard for EVM: the same spend limits and double-payment protection as Solana.
+function evmLimits(chatId: number, usdValue: number, fp: string, lines: string[]): GuardResult {
+  const g = guardState(chatId);
+  const left = Math.max(0, g.dailyUsd - spentToday(g));
+  if (usdValue > g.perTxUsd) return { refused: `This moves ${usd(usdValue)}. Your Guard limit is ${usd(g.perTxUsd)} per transaction.`, overLimit: true, usd: usdValue, fp, lines };
+  if (usdValue > left) return { refused: `This moves ${usd(usdValue)}, but you only have ${usd(left)} left of your ${usd(g.dailyUsd)} daily Guard limit.`, overLimit: true, usd: usdValue, fp, lines };
+  lines.unshift(`🛡 Guard: <b>${usd(usdValue)}</b> leaves your wallet · limit ${usd(g.perTxUsd)}/tx · ${usd(left)} left today`);
+  const last = g.history.filter((h) => h.fp === fp && Date.now() - h.t < DUPLICATE_WINDOW_MS).pop();
+  return { usd: usdValue, fp, lines, duplicateMinutes: last ? Math.max(1, Math.round((Date.now() - last.t) / 60_000)) : undefined };
+}
+
+// Recipient checks for plain sends: no burn address, no token contract, flag contracts and fresh addresses.
+async function evmGuard(chatId: number, chain: EvmChain, to: string, amount: number): Promise<GuardResult> {
+  const t = to.toLowerCase();
+  const fp = createHash("sha256").update(`evm|${chain.key}|${t}|${amount}`).digest("hex").slice(0, 16);
+  if (/^0x0{40}$/.test(t)) return { refused: "That's the zero address. Anything sent there is burned forever.", usd: amount, fp, lines: [] };
+  if (t === chain.usdc.toLowerCase()) return { refused: `That's the ${chain.stable} token contract, not a wallet. Money sent there is lost.`, usd: amount, fp, lines: [] };
   const lines: string[] = [];
   const [code, txCount] = await Promise.all([
-    evmRpc(chain, "eth_getCode", [b.to, "latest"]).catch(() => "0x"),
-    evmRpc(chain, "eth_getTransactionCount", [b.to, "latest"]).catch(() => "0x1"),
+    evmRpc(chain, "eth_getCode", [to, "latest"]).catch(() => "0x"),
+    evmRpc(chain, "eth_getTransactionCount", [to, "latest"]).catch(() => "0x1"),
   ]);
   if (code && code !== "0x") lines.push(`⚠️ This address is a smart contract. That's normal for smart wallets, but make sure it's really their wallet on ${chain.name}.`);
   else if (BigInt(txCount) === 0n) lines.push(`🆕 This address has never sent a transaction on ${chain.name}. Double-check it before you confirm.`);
-  const g = guardState(chatId);
-  const left = Math.max(0, g.dailyUsd - spentToday(g));
-  if (b.amount > g.perTxUsd) return { refused: `This sends ${usd(b.amount)}. Your Guard limit is ${usd(g.perTxUsd)} per transaction.`, overLimit: true, usd: b.amount, fp, lines };
-  if (b.amount > left) return { refused: `This sends ${usd(b.amount)}, but you only have ${usd(left)} left of your ${usd(g.dailyUsd)} daily Guard limit.`, overLimit: true, usd: b.amount, fp, lines };
-  lines.unshift(`🛡 Guard: <b>${usd(b.amount)}</b> leaves your wallet · limit ${usd(g.perTxUsd)}/tx · ${usd(left)} left today`);
-  const last = g.history.filter((h) => h.fp === fp && Date.now() - h.t < DUPLICATE_WINDOW_MS).pop();
-  return { usd: b.amount, fp, lines, duplicateMinutes: last ? Math.max(1, Math.round((Date.now() - last.t) / 60_000)) : undefined };
+  return evmLimits(chatId, amount, fp, lines);
+}
+
+function evmChainPicker(chatId: number, title: string, keys: EvmKey[], run: (cid: number, key: EvmKey) => Promise<unknown>): Promise<unknown> {
+  const rows: Keyboard = [];
+  for (let i = 0; i < keys.length; i += 2) rows.push(keys.slice(i, i + 2).map((k) => button(`${EVM_CHAINS[k].icon} ${EVM_CHAINS[k].name}`, (cid) => run(cid, k))));
+  return send(chatId, title, [...rows, MENU_BUTTON()]);
 }
 
 function sendToEvm(chatId: number, key: EvmKey): Promise<unknown> {
   const chain = EVM_CHAINS[key];
-  return ask(chatId, `📬 Paste the <b>0x… address</b> on <b>${chain.name}</b> to send USDC to:`, async (text) => {
+  return ask(chatId, `📬 Paste the <b>0x… address</b> on <b>${chain.name}</b> to send ${chain.stable} to:`, async (text) => {
     const to = text.trim();
     if (!isEvmAddress(to)) return send(chatId, `That isn't a ${chain.name} address. It should start with 0x and be 42 characters long.`, [[button("Try again", (cid) => sendToEvm(cid, key))], MENU_BUTTON()]);
-    return amountPicker(chatId, "USDC", `${chain.icon} Send USDC on ${chain.name} to <code>${shortEvm(to)}</code>`, (amount) => previewEvm(chatId, key, to, Number(amount)));
+    return amountPicker(chatId, chain.stable, `${chain.icon} Send ${chain.stable} on ${chain.name} to <code>${shortEvm(to)}</code>`, (amount) => previewEvm(chatId, key, to, Number(amount)));
   });
+}
+
+async function buildEvmSend(chain: EvmChain, from: string, to: string, amount: number): Promise<EvmBatch | string> {
+  const units = stableUnits(chain, amount);
+  try {
+    const bal = await erc20Balance(chain, chain.usdc, from);
+    if (bal < units) return `Not enough ${chain.stable} on ${chain.name}: you have ${fmtUnits(bal, chain.decimals)}, this needs ${amount}${chain.gasIsUsdc ? " plus a tiny USDC network fee" : ""}.`;
+  } catch (e) {
+    return `Couldn't reach ${chain.name}: ${(e as Error).message}`;
+  }
+  return prepareEvm(chain, from, [{ to: chain.usdc, data: `0xa9059cbb${pad32(to)}${units.toString(16).padStart(64, "0")}`, what: "transfer" }], units);
 }
 
 async function previewEvm(chatId: number, key: EvmKey, to: string, amount: number, again = false): Promise<unknown> {
@@ -1203,15 +1296,15 @@ async function previewEvm(chatId: number, key: EvmKey, to: string, amount: numbe
   const w = await evmWallet(chatId);
   if (!w) return send(chatId, "No EVM wallet is shared with Blinkbox. In PayBox, allow your EVM wallet for Blinkbox, or tap Wallet → Disconnect and Connect again.", [MENU_BUTTON()]);
   await tg("sendChatAction", { chat_id: chatId, action: "typing" });
-  const b = await buildEvmUsdcTransfer(chain, w.address, to, amount);
+  const b = await buildEvmSend(chain, w.address, to, amount);
   if (typeof b === "string") return problem(chatId, `⚠️ ${esc(b)}`);
-  const g = await evmGuard(chatId, chain, b);
+  const g = await evmGuard(chatId, chain, to, amount);
   if (g.refused) return send(chatId, `⛔ <b>Blocked by Guard</b>\n${esc(g.refused)}\n\nNothing was sent.`, [...(g.overLimit ? [[button("🛡 Change my limits", (cid) => guardSettings(cid))]] : []), MENU_BUTTON()]);
   return send(chatId, [
-    `${chain.icon} <b>Send USDC on ${chain.name}</b>`,
+    `${chain.icon} <b>Send ${chain.stable} on ${chain.name}</b>`,
     "",
     `• To: <code>${to}</code>`,
-    `• Amount: <b>${amount} USDC</b>`,
+    `• Amount: <b>${amount} ${chain.stable}</b>`,
     `• Network fee: up to ${fmtFee(chain, b.feeWei)}${chain.gasIsUsdc ? " (Arc charges fees in USDC, no other token needed)" : ""}`,
     ...g.lines,
     ...(g.duplicateMinutes ? [`🔁 <b>You sent this exact transfer ${g.duplicateMinutes} min ago.</b> Only confirm if you mean to do it again.`] : []),
@@ -1229,31 +1322,370 @@ async function executeEvm(chatId: number, key: EvmKey, to: string, amount: numbe
   const w = await evmWallet(chatId);
   if (!w) return send(chatId, "No EVM wallet is shared with Blinkbox.", [MENU_BUTTON()]);
   // Rebuild so nonce and fees are fresh at the moment of signing.
-  const b = await buildEvmUsdcTransfer(chain, w.address, to, amount);
+  const b = await buildEvmSend(chain, w.address, to, amount);
   if (typeof b === "string") return problem(chatId, `⚠️ ${esc(b)}`);
-  const g = await evmGuard(chatId, chain, b);
+  const g = await evmGuard(chatId, chain, to, amount);
   if (g.refused) return send(chatId, `⛔ <b>Blocked by Guard</b>\n${esc(g.refused)}\n\nNothing was sent.`, [MENU_BUTTON()]);
   if (g.duplicateMinutes && !again) return previewEvm(chatId, key, to, amount);
-  await send(chatId, "🔐 Sent to PayBox. If it asks, approve in the PayBox app with your passkey within a minute.");
-  const res = await runWorker(chatId, "signEvm", { credentialId: w.credentialId, transaction: b.tx });
-  const r = res.response;
-  if (!res.ok) return send(chatId, `⚠️ PayBox: ${esc(res.error ?? "signing failed")}`, [MENU_BUTTON()]);
-  if (r?.status === "denied") return send(chatId, `🚫 Denied in PayBox${r.reason ? `: ${esc(r.reason)}` : "."}`, [MENU_BUTTON()]);
-  const signed = r?.output?.value?.serializedTransaction;
-  if (!signed) return send(chatId, `⚠️ PayBox did not return a signed transaction (status: ${esc(String(r?.status))}). Nothing was sent.`, [MENU_BUTTON()]);
-  let hash: string;
-  try { hash = await evmRpc(chain, "eth_sendRawTransaction", [signed]); } catch (e) {
-    return problem(chatId, `⚠️ ${chain.name} rejected the transfer: ${esc((e as Error).message)}\nNothing was sent.`);
+  const r = await runEvm(chatId, chain, w, b);
+  if (r.hashes.length) recordSpend(chatId, g.fp, g.usd);
+  const links = r.hashes.length ? [[evmLink(chain, r.hashes[r.hashes.length - 1]!)]] : [];
+  if (r.status === "confirmed") return send(chatId, `✅ <b>Confirmed on ${chain.name}</b>\n${amount} ${chain.stable} sent to <code>${shortEvm(to)}</code>`, [...links, MENU_BUTTON()]);
+  return send(chatId, `${r.status === "pending" ? "⏳" : "⚠️"} ${esc(r.stopped ?? "Not confirmed.")}${r.hashes.length ? "" : "\nNothing was sent."}`, [...links, MENU_BUTTON()]);
+}
+
+// ---------- Bridge and EVM swaps, routed by LI.FI (Across, Relay, CCTP and DEXs) ----------
+
+const LIFI = "https://li.quest/v1";
+const LIFI_SOLANA = 1151111081099710;
+type BridgeSide = "solana" | EvmKey;
+const sideName = (s: BridgeSide) => (s === "solana" ? "Solana" : EVM_CHAINS[s].name);
+const sideIcon = (s: BridgeSide) => (s === "solana" ? "◎" : EVM_CHAINS[s].icon);
+const sideChainId = (s: BridgeSide) => (s === "solana" ? LIFI_SOLANA : EVM_CHAINS[s].chainId);
+const sideStable = (s: BridgeSide) => (s === "solana" ? USDC_MINT : EVM_CHAINS[s].usdc);
+const sideStableName = (s: BridgeSide) => (s === "solana" ? "USDC" : EVM_CHAINS[s].stable);
+
+type LifiQuote = {
+  tool: string; toolDetails?: { name?: string };
+  action: { fromChainId: number; toChainId: number; fromAmount: string; fromToken: { address: string; symbol: string; decimals: number; priceUSD?: string }; toToken: { address: string; symbol: string; decimals: number; priceUSD?: string } };
+  estimate: { toAmount: string; toAmountMin: string; approvalAddress?: string; executionDuration?: number; fromAmountUSD?: string; toAmountUSD?: string; feeCosts?: { name: string; amountUSD?: string; included?: boolean }[]; gasCosts?: { amountUSD?: string }[] };
+  transactionRequest: { to?: string; data: string; value?: string; gasLimit?: string };
+};
+
+async function lifiQuote(p: { from: BridgeSide; to: BridgeSide; fromToken: string; toToken: string; amount: bigint; fromAddress: string; toAddress: string; slippage?: number }): Promise<LifiQuote | string> {
+  const q = new URLSearchParams({
+    fromChain: String(sideChainId(p.from)), toChain: String(sideChainId(p.to)), fromToken: p.fromToken, toToken: p.toToken,
+    fromAmount: p.amount.toString(), fromAddress: p.fromAddress, toAddress: p.toAddress, slippage: String(p.slippage ?? 0.005), integrator: "blinkbox",
+  });
+  try {
+    const res = await fetch(`${LIFI}/quote?${q}`, { signal: AbortSignal.timeout(25_000) });
+    const d = (await res.json()) as any;
+    if (!res.ok || !d?.transactionRequest) return d?.message ? `No route: ${d.message}` : `No route found (${res.status}).`;
+    return d as LifiQuote;
+  } catch (e) {
+    return `Couldn't get a route: ${(e as Error).message}`;
   }
-  recordSpend(chatId, g.fp, g.usd);
-  let status: "confirmed" | "failed" | "pending" = "pending";
-  for (let i = 0; i < 30 && status === "pending"; i++) {
-    await new Promise((res2) => setTimeout(res2, 2000));
-    const rc = await evmRpc(chain, "eth_getTransactionReceipt", [hash]).catch(() => null);
-    if (rc) status = rc.status === "0x1" ? "confirmed" : "failed";
+}
+
+const quoteUsd = (q: LifiQuote) => Number(q.estimate.fromAmountUSD ?? 0) || Number(q.action.fromAmount) / 10 ** q.action.fromToken.decimals * Number(q.action.fromToken.priceUSD ?? 1);
+const quoteFees = (q: LifiQuote) => (q.estimate.feeCosts ?? []).reduce((a, f) => a + Number(f.amountUSD ?? 0), 0) + (q.estimate.gasCosts ?? []).reduce((a, g) => a + Number(g.amountUSD ?? 0), 0);
+const quoteOut = (q: LifiQuote, min = false) => fmtUnits(BigInt(min ? q.estimate.toAmountMin : q.estimate.toAmount), q.action.toToken.decimals);
+const minutes = (s?: number) => (!s || s < 60 ? "under a minute" : `about ${Math.round(s / 60)} min`);
+
+// The EVM side of a LI.FI route: an exact-amount approval when needed, then the route itself.
+// Guard: the route must go to LI.FI's own contract on that chain, and the approval is never unlimited.
+async function lifiEvmCalls(chain: EvmChain, from: string, q: LifiQuote): Promise<EvmCall[] | string> {
+  const tx = q.transactionRequest;
+  if (!tx.to || tx.to.toLowerCase() !== chain.lifi.toLowerCase()) return `Guard refused: the route sends your funds to ${tx.to ?? "an unknown contract"}, not LI.FI's contract on ${chain.name}.`;
+  const calls: EvmCall[] = [];
+  const token = q.action.fromToken.address;
+  const amount = BigInt(q.action.fromAmount);
+  if (token.toLowerCase() !== NATIVE) {
+    const spender = q.estimate.approvalAddress ?? tx.to;
+    if (spender.toLowerCase() !== chain.lifi.toLowerCase()) return `Guard refused: the route asks to approve ${spender}, not LI.FI's contract on ${chain.name}.`;
+    const allowance = BigInt(await evmRpc(chain, "eth_call", [{ to: token, data: `0xdd62ed3e${pad32(from)}${pad32(spender)}` }, "latest"]));
+    if (allowance < amount) calls.push({ to: token, data: `0x095ea7b3${pad32(spender)}${amount.toString(16).padStart(64, "0")}`, what: `approve exactly ${fmtUnits(amount, q.action.fromToken.decimals)} ${q.action.fromToken.symbol}` });
   }
-  const link = `${chain.explorer}/tx/${hash}`;
-  return send(chatId, status === "confirmed" ? `✅ <b>Confirmed on ${chain.name}</b>\n${amount} USDC sent to <code>${shortEvm(to)}</code>` : status === "failed" ? `❌ The transfer failed on ${chain.name}.` : "⏳ Sent. Confirmation is taking a while; check the link.", [[{ text: `View on ${chain.explorer.replace("https://", "")}`, url: link }], MENU_BUTTON()]);
+  calls.push({ to: tx.to, data: tx.data, value: BigInt(tx.value ?? "0"), gas: calls.length ? BigInt(tx.gasLimit ?? "600000") : undefined, what: q.action.fromChainId === q.action.toChainId ? "swap" : "bridge" });
+  return calls;
+}
+
+function bridgeStart(chatId: number): Promise<unknown> {
+  return send(chatId, "🌉 <b>Bridge USDC</b>\nMove dollars between Solana, Base, Arc and every other chain PayBox supports. Same wallet on both ends.\n\n<b>From</b> which chain?", [
+    [button("◎ Solana", (cid) => bridgeTo(cid, "solana")), button("🔵 Base", (cid) => bridgeTo(cid, "base")), button("🟣 Arc", (cid) => bridgeTo(cid, "arc"))],
+    [button("🌐 Other chains", (cid) => evmChainPicker(cid, "🌉 Bridge <b>from</b>:", EVM_ORDER.slice(2), (c2, k) => bridgeTo(c2, k)))],
+    MENU_BUTTON(),
+  ]);
+}
+
+function bridgeTo(chatId: number, from: BridgeSide): Promise<unknown> {
+  const all: BridgeSide[] = ["solana", ...EVM_ORDER];
+  const others = all.filter((s) => s !== from);
+  const rows: Keyboard = [];
+  for (let i = 0; i < others.length; i += 3) rows.push(others.slice(i, i + 3).map((s) => button(`${sideIcon(s)} ${sideName(s)}`, (cid) => bridgeAmount(cid, from, s))));
+  return send(chatId, `🌉 From <b>${sideName(from)}</b> to which chain?`, [...rows, MENU_BUTTON()]);
+}
+
+function bridgeAmount(chatId: number, from: BridgeSide, to: BridgeSide): Promise<unknown> {
+  return amountPicker(chatId, sideStableName(from), `🌉 Bridge ${sideStableName(from)} from <b>${sideName(from)}</b> to <b>${sideName(to)}</b>`, (amount) => bridgePreview(chatId, from, to, Number(amount)));
+}
+
+async function bridgeWallets(chatId: number, from: BridgeSide, to: BridgeSide) {
+  const [sol, evm] = await Promise.all([from === "solana" || to === "solana" ? wallet(chatId) : null, from !== "solana" || to !== "solana" ? evmWallet(chatId) : null]);
+  const addr = (s: BridgeSide) => (s === "solana" ? sol?.address : evm?.address);
+  return { sol, evm, fromAddress: addr(from), toAddress: addr(to) };
+}
+
+async function bridgeQuote(chatId: number, from: BridgeSide, to: BridgeSide, amount: number) {
+  const w = await bridgeWallets(chatId, from, to);
+  if (!w.fromAddress || !w.toAddress) return { error: `Blinkbox can't see your ${!w.fromAddress ? sideName(from) : sideName(to)} wallet. Tap Wallet → Disconnect, then Connect again and allow both your Solana and EVM wallets.` };
+  const units = from === "solana" ? BigInt(Math.round(amount * 1e6)) : stableUnits(EVM_CHAINS[from], amount);
+  const q = await lifiQuote({ from, to, fromToken: sideStable(from), toToken: sideStable(to), amount: units, fromAddress: w.fromAddress, toAddress: w.toAddress });
+  return typeof q === "string" ? { error: q } : { q, w, units };
+}
+
+async function bridgePreview(chatId: number, from: BridgeSide, to: BridgeSide, amount: number, again = false): Promise<unknown> {
+  if (await needLink(chatId)) return;
+  await tg("sendChatAction", { chat_id: chatId, action: "typing" });
+  const r = await bridgeQuote(chatId, from, to, amount);
+  if ("error" in r) return problem(chatId, `⚠️ ${esc(r.error ?? "")}`);
+  const { q, w } = r;
+  const lines = [
+    `🌉 <b>Bridge ${amount} ${sideStableName(from)}</b>: ${sideName(from)} → ${sideName(to)}`,
+    "",
+    `• You receive: <b>≈ ${quoteOut(q)} ${q.action.toToken.symbol}</b> on ${sideName(to)} (at least ${quoteOut(q, true)})`,
+    `• To: <code>${w.toAddress}</code> (your own ${sideName(to)} wallet)`,
+    `• Fees: about ${usd(quoteFees(q))} all in · arrives in ${minutes(q.estimate.executionDuration)}`,
+    `• Route: ${esc(q.toolDetails?.name ?? q.tool)} via LI.FI`,
+  ];
+  if (from === "solana") {
+    // Solana side: LI.FI hands back a full transaction, which goes through the usual Solana Guard and preview.
+    return previewWith(chatId, () => lifiSolanaBuilt(chatId, from, to, amount), { lines: lines.slice(2), afterSend: (cid, sig) => watchBridge(cid, from, to, sig) });
+  }
+  const chain = EVM_CHAINS[from];
+  const calls = await lifiEvmCalls(chain, w.fromAddress!, q).catch((e) => `Couldn't check the route: ${(e as Error).message}`);
+  if (typeof calls === "string") return problem(chatId, `⛔ ${esc(calls)}`);
+  const bal = await erc20Balance(chain, chain.usdc, w.fromAddress!).catch(() => 0n);
+  if (bal < r.units) return problem(chatId, `⚠️ Not enough ${chain.stable} on ${chain.name}: you have ${fmtUnits(bal, chain.decimals)}, this needs ${amount}.`);
+  const b = await prepareEvm(chain, w.fromAddress!, calls, r.units);
+  if (typeof b === "string") return problem(chatId, `⚠️ ${esc(b)}`);
+  const fp = createHash("sha256").update(`bridge|${from}|${to}|${amount}`).digest("hex").slice(0, 16);
+  const g = evmLimits(chatId, amount, fp, []);
+  if (g.refused) return send(chatId, `⛔ <b>Blocked by Guard</b>\n${esc(g.refused)}\n\nNothing was sent.`, [...(g.overLimit ? [[button("🛡 Change my limits", (cid) => guardSettings(cid))]] : []), MENU_BUTTON()]);
+  return send(chatId, [
+    ...lines,
+    `• ${chain.name} network fee: up to ${fmtFee(chain, b.feeWei)}`,
+    ...(b.txs.length > 1 ? [`• Two signatures: ${esc(b.whats[0]!)} (never unlimited), then the bridge`] : []),
+    ...g.lines,
+    ...(g.duplicateMinutes ? [`🔁 <b>You bridged this exact amount ${g.duplicateMinutes} min ago.</b> Only confirm if you mean to do it again.`] : []),
+    "",
+    "Nothing moves until you tap Confirm. PayBox may then ask for your passkey.",
+  ].join("\n"), [[
+    button(g.duplicateMinutes ? "✅ Yes, do it again" : "✅ Confirm", (cid) => bridgeExecute(cid, from, to, amount, again || !!g.duplicateMinutes)),
+    button("✖ Cancel", (cid) => menu(cid, "Cancelled. Nothing was sent.")),
+  ]]);
+}
+
+async function lifiSolanaBuilt(chatId: number, from: BridgeSide, to: BridgeSide, amount: number): Promise<Built | string> {
+  const r = await bridgeQuote(chatId, from, to, amount);
+  if ("error" in r) return r.error ?? "No route.";
+  const raw = Buffer.from(r.q.transactionRequest.data, "base64");
+  const tx = parseTransaction(raw);
+  const bad = payboxIncompatibility(tx, r.w.fromAddress!);
+  if (bad) return bad;
+  const p = await precheck(raw);
+  if (p) return humanize(p, await solBalance(r.w.fromAddress!));
+  return { raw, title: "Bridge", label: `${amount} USDC from Solana to ${sideName(to)}`, summary: summarize(tx) };
+}
+
+async function bridgeExecute(chatId: number, from: BridgeSide, to: BridgeSide, amount: number, again: boolean): Promise<unknown> {
+  if (from === "solana") return bridgePreview(chatId, from, to, amount, again);
+  const chain = EVM_CHAINS[from];
+  // Fresh quote, fresh nonce and fees at the moment of signing.
+  const r = await bridgeQuote(chatId, from, to, amount);
+  if ("error" in r) return problem(chatId, `⚠️ ${esc(r.error ?? "")}`);
+  const calls = await lifiEvmCalls(chain, r.w.fromAddress!, r.q).catch((e) => `Couldn't check the route: ${(e as Error).message}`);
+  if (typeof calls === "string") return problem(chatId, `⛔ ${esc(calls)}`);
+  const b = await prepareEvm(chain, r.w.fromAddress!, calls, r.units);
+  if (typeof b === "string") return problem(chatId, `⚠️ ${esc(b)}`);
+  const fp = createHash("sha256").update(`bridge|${from}|${to}|${amount}`).digest("hex").slice(0, 16);
+  const g = evmLimits(chatId, amount, fp, []);
+  if (g.refused) return send(chatId, `⛔ <b>Blocked by Guard</b>\n${esc(g.refused)}\n\nNothing was sent.`, [MENU_BUTTON()]);
+  if (g.duplicateMinutes && !again) return bridgePreview(chatId, from, to, amount);
+  const res = await runEvm(chatId, chain, (await evmWallet(chatId))!, b);
+  if (res.hashes.length) recordSpend(chatId, g.fp, g.usd);
+  const last = res.hashes[res.hashes.length - 1];
+  if (res.status !== "confirmed" || !last) return send(chatId, `⚠️ ${esc(res.stopped ?? "Not confirmed.")}${res.hashes.length ? "" : "\nNothing was sent."}`, [...(last ? [[evmLink(chain, last)]] : []), MENU_BUTTON()]);
+  await send(chatId, `✅ <b>Sent from ${chain.name}.</b> Now bridging to ${sideName(to)}; I'll message you when it lands.`, [[evmLink(chain, last)]]);
+  return watchBridge(chatId, from, to, last);
+}
+
+// Polls LI.FI until the funds land on the destination chain, then posts the receipt.
+async function watchBridge(chatId: number, from: BridgeSide, to: BridgeSide, txHash: string): Promise<unknown> {
+  for (let i = 0; i < 60; i++) {
+    await new Promise((r) => setTimeout(r, 10_000));
+    const s = await fetch(`${LIFI}/status?txHash=${txHash}&fromChain=${sideChainId(from)}&toChain=${sideChainId(to)}`, { signal: AbortSignal.timeout(15_000) }).then((r) => r.json() as Promise<any>).catch(() => null);
+    if (s?.status === "DONE") {
+      const recv = s.receiving?.txHash as string | undefined;
+      const amt = s.receiving?.amount && s.receiving?.token ? `${fmtUnits(BigInt(s.receiving.amount), s.receiving.token.decimals)} ${s.receiving.token.symbol}` : "Your funds";
+      const link = recv ? (to === "solana" ? { text: "View on Solscan", url: `https://solscan.io/tx/${recv}` } : evmLink(EVM_CHAINS[to], recv)) : null;
+      return send(chatId, `✅ <b>${esc(amt)} arrived on ${sideName(to)}.</b>`, [...(link ? [[link]] : []), MENU_BUTTON()]);
+    }
+    if (s?.status === "FAILED") return send(chatId, `⚠️ The bridge reported a problem (${esc(s.substatus ?? "failed")}). Funds that don't arrive are refunded by the bridge to your ${sideName(from)} wallet.`, [MENU_BUTTON()]);
+  }
+  return send(chatId, `⏳ Still bridging to ${sideName(to)}. It's taking longer than usual; check your wallet in a few minutes.`, [MENU_BUTTON()]);
+}
+
+// ---------- Hot on Base: trending Base tokens, safety-checked, bought with USDC or ETH ----------
+
+type BasePick = { address: string; symbol: string; name: string; change: number; volume: number; liquidity: number; holders: number };
+let baseHotCache: { picks: BasePick[]; skipped: Record<string, number>; at: number } | null = null;
+const goplusCache = new Map<string, { data: any; at: number }>();
+const BASE_SKIP = new Set(["0x4200000000000000000000000000000000000006", "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", "0x50c5725949a6f0c72e6c4a641f24049a917db0cb", "0xfde4c96c8593536e31f229ea8f37b2ada2699bb2"]);
+
+async function scanBaseHot(): Promise<{ picks: BasePick[]; skipped: Record<string, number> }> {
+  if (baseHotCache && Date.now() - baseHotCache.at < 5 * 60_000) return baseHotCache;
+  const skipped: Record<string, number> = {};
+  const skip = (why: string) => (skipped[why] = (skipped[why] ?? 0) + 1);
+  const pools: any[] = (await http("https://api.geckoterminal.com/api/v2/networks/base/trending_pools?duration=24h&page=1"))?.data ?? [];
+  const seen = new Map<string, any>();
+  for (const p of pools) {
+    const addr = String(p.relationships?.base_token?.data?.id ?? "").replace(/^base_/, "").toLowerCase();
+    if (!isEvmAddress(addr) || BASE_SKIP.has(addr)) { skip("not a meme/alt coin"); continue; }
+    if (!seen.has(addr)) seen.set(addr, p);
+  }
+  const addrs = [...seen.keys()].slice(0, 15);
+  // GoPlus's free tier answers one token per request: look them up a few at a time, cached for 30 min.
+  const sec: Record<string, any> = {};
+  for (let i = 0; i < addrs.length; i += 5) {
+    await Promise.all(addrs.slice(i, i + 5).map(async (a) => {
+      const hit = goplusCache.get(a);
+      if (hit && Date.now() - hit.at < 30 * 60_000) { sec[a] = hit.data; return; }
+      const r = await http(`https://api.gopluslabs.io/api/v1/token_security/8453?contract_addresses=${a}`).catch(() => null);
+      const data = r?.result?.[a];
+      if (data) { goplusCache.set(a, { data, at: Date.now() }); sec[a] = data; }
+    }));
+  }
+  const picks: BasePick[] = [];
+  for (const addr of addrs) {
+    const p = seen.get(addr)!.attributes;
+    const s = sec[addr];
+    const liquidity = Number(p.reserve_in_usd ?? 0), change = Number(p.price_change_percentage?.h24 ?? 0), volume = Number(p.volume_usd?.h24 ?? 0);
+    if (!s) { skip("no security data"); continue; }
+    if (s.is_honeypot === "1" || s.cannot_sell_all === "1") { skip("can't be sold (honeypot)"); continue; }
+    if (Number(s.buy_tax || 0) > 0.05 || Number(s.sell_tax || 0) > 0.05) { skip("high buy/sell tax"); continue; }
+    if (s.is_open_source !== "1") { skip("closed-source contract"); continue; }
+    if (s.is_mintable === "1" || s.owner_change_balance === "1" || s.hidden_owner === "1" || s.transfer_pausable === "1" || s.is_blacklisted === "1" || s.slippage_modifiable === "1") { skip("owner can mint, pause or blacklist"); continue; }
+    if (liquidity < 100_000) { skip("thin liquidity"); continue; }
+    if (Number(s.holder_count ?? 0) < 1000) { skip("too few holders"); continue; }
+    if (change <= 0) { skip("not trending up"); continue; }
+    picks.push({ address: addr, symbol: String(s.token_symbol ?? p.name?.split(" / ")[0] ?? "?"), name: String(s.token_name ?? ""), change, volume, liquidity, holders: Number(s.holder_count) });
+    if (picks.length >= 5) break;
+  }
+  baseHotCache = { picks, skipped, at: Date.now() };
+  return baseHotCache;
+}
+
+async function baseHotStart(chatId: number): Promise<unknown> {
+  await send(chatId, "🔵 Scanning Base's trending tokens and running safety checks…");
+  await tg("sendChatAction", { chat_id: chatId, action: "typing" });
+  let scan;
+  try { scan = await scanBaseHot(); } catch (e) { return send(chatId, `⚠️ Couldn't load Base tokens: ${esc((e as Error).message)}`, [MENU_BUTTON()]); }
+  const { picks, skipped } = scan;
+  if (!picks.length) return send(chatId, "Nothing on Base passed the safety checks right now. Try again later.", [MENU_BUTTON()]);
+  const skippedTotal = Object.values(skipped).reduce((a, b) => a + b, 0);
+  return send(chatId, [
+    "🔵 <b>Hot on Base that passed safety checks</b> (24h)",
+    "",
+    ...picks.map((p, i) => `${i + 1}. <b>${esc(p.symbol)}</b> ${esc(p.name)}\n   ${p.change >= 0 ? "▲" : "▼"} ${p.change.toFixed(1)}% · vol ${usdFmt(p.volume)} · liq ${usdFmt(p.liquidity)} · ${p.holders.toLocaleString("en-US")} holders`),
+    "",
+    `🛡 Skipped ${skippedTotal}: ${Object.entries(skipped).map(([k, v]) => `${v} ${k}`).join(", ")}.`,
+    "Checks: not a honeypot, taxes under 5%, verified contract, owner can't mint, pause or blacklist, real liquidity.",
+    "⚠️ <i>Meme coins are extremely risky. This is a scan, not financial advice.</i>",
+  ].join("\n"), [
+    ...picks.map((p) => [button(`Buy ${p.symbol} with USDC`, (cid) => amountPickerUsd(cid, p.symbol, (n) => baseBuyPreview(cid, p, n, "usdc"), "USDC on Base")), button("with ETH", (cid) => amountPickerUsd(cid, p.symbol, (n) => baseBuyPreview(cid, p, n, "eth"), "ETH on Base"))]),
+    [button("💰 Sell my Base tokens", (cid) => baseSellList(cid)), button("🔄 Rescan", async (cid) => { baseHotCache = null; return baseHotStart(cid); })],
+    MENU_BUTTON(),
+  ]);
+}
+
+const ethUsd = async () => Number((await fetch(`${LIFI}/token?chain=8453&token=ETH`, { signal: AbortSignal.timeout(10_000) }).then((r) => r.json() as Promise<any>)).priceUSD);
+
+// A same-chain swap on Base through LI.FI, previewed then signed like every other Blinkbox transaction.
+async function baseSwapQuote(chatId: number, fromToken: string, toToken: string, units: bigint) {
+  const w = await evmWallet(chatId);
+  if (!w) return { error: "No EVM wallet is shared with Blinkbox. Tap Wallet → Disconnect, then Connect again and allow your EVM wallet." };
+  const q = await lifiQuote({ from: "base", to: "base", fromToken, toToken, amount: units, fromAddress: w.address, toAddress: w.address, slippage: 0.02 });
+  if (typeof q === "string") return { error: q };
+  const inUsd = Number(q.estimate.fromAmountUSD ?? 0), outUsd = Number(q.estimate.toAmountUSD ?? 0);
+  if (inUsd > 0 && outUsd > 0 && outUsd < inUsd * 0.95) return { error: `Guard refused: you'd lose about ${Math.round((1 - outUsd / inUsd) * 100)}% to price impact and fees. The pool is too thin for this size.` };
+  return { q, w };
+}
+
+async function baseBuyPreview(chatId: number, p: BasePick, usdAmount: number, pay: "usdc" | "eth"): Promise<unknown> {
+  if (await needLink(chatId)) return;
+  await tg("sendChatAction", { chat_id: chatId, action: "typing" });
+  const chain = EVM_CHAINS.base;
+  let units: bigint;
+  if (pay === "usdc") units = stableUnits(chain, usdAmount);
+  else {
+    const price = await ethUsd().catch(() => NaN);
+    if (!Number.isFinite(price) || price <= 0) return problem(chatId, "⚠️ Couldn't get the ETH price. Try again.");
+    units = BigInt(Math.floor((usdAmount / price) * 1e18));
+  }
+  return baseSwapPreview(chatId, pay === "usdc" ? chain.usdc : NATIVE, p.address, units, usdAmount, { buy: p });
+}
+
+async function baseSwapPreview(chatId: number, fromToken: string, toToken: string, units: bigint, usdAmount: number, info: { buy?: BasePick; sellSymbol?: string }, again = false): Promise<unknown> {
+  const chain = EVM_CHAINS.base;
+  const r = await baseSwapQuote(chatId, fromToken, toToken, units);
+  if ("error" in r) return problem(chatId, `⚠️ ${esc(r.error ?? "")}`);
+  const { q, w } = r;
+  if (fromToken !== NATIVE) {
+    const bal = await erc20Balance(chain, fromToken, w.address).catch(() => 0n);
+    if (bal < units) return problem(chatId, `⚠️ Not enough ${esc(q.action.fromToken.symbol)} on Base: you have ${fmtUnits(bal, q.action.fromToken.decimals)}, this needs ${fmtUnits(units, q.action.fromToken.decimals)}.`);
+  }
+  const calls = await lifiEvmCalls(chain, w.address, q).catch((e) => `Couldn't check the route: ${(e as Error).message}`);
+  if (typeof calls === "string") return problem(chatId, `⛔ ${esc(calls)}`);
+  const b = await prepareEvm(chain, w.address, calls);
+  if (typeof b === "string") return problem(chatId, `⚠️ ${esc(b)}`);
+  const fp = createHash("sha256").update(`baseswap|${fromToken}|${toToken}|${units}`).digest("hex").slice(0, 16);
+  const g = evmLimits(chatId, Number(q.estimate.fromAmountUSD ?? usdAmount), fp, []);
+  if (g.refused) return send(chatId, `⛔ <b>Blocked by Guard</b>\n${esc(g.refused)}\n\nNothing was sent.`, [...(g.overLimit ? [[button("🛡 Change my limits", (cid) => guardSettings(cid))]] : []), MENU_BUTTON()]);
+  const run = (cid: number, ok: boolean) => baseSwapExecute(cid, fromToken, toToken, units, usdAmount, info, ok);
+  return send(chatId, [
+    `🔵 <b>${info.buy ? `Buy ${esc(info.buy.symbol)}` : `Sell ${esc(info.sellSymbol ?? q.action.fromToken.symbol)}`} on Base</b>`,
+    "",
+    `• You pay: <b>${fmtUnits(units, q.action.fromToken.decimals)} ${esc(q.action.fromToken.symbol)}</b> (${usd(Number(q.estimate.fromAmountUSD ?? usdAmount))})`,
+    `• You get: <b>≈ ${quoteOut(q)} ${esc(q.action.toToken.symbol)}</b> (at least ${quoteOut(q, true)}, 2% max slippage)`,
+    `• Route: ${esc(q.toolDetails?.name ?? q.tool)} via LI.FI · network fee up to ${fmtFee(chain, b.feeWei)}`,
+    ...(b.txs.length > 1 ? [`• Two signatures: ${esc(b.whats[0]!)} (never unlimited), then the swap`] : []),
+    ...g.lines,
+    ...(g.duplicateMinutes ? [`🔁 <b>You made this exact swap ${g.duplicateMinutes} min ago.</b> Only confirm if you mean to do it again.`] : []),
+    "",
+    "Nothing moves until you tap Confirm. PayBox may then ask for your passkey.",
+  ].join("\n"), [[button(g.duplicateMinutes ? "✅ Yes, do it again" : "✅ Confirm", (cid) => run(cid, again || !!g.duplicateMinutes)), button("✖ Cancel", (cid) => menu(cid, "Cancelled. Nothing was sent."))]]);
+}
+
+async function baseSwapExecute(chatId: number, fromToken: string, toToken: string, units: bigint, usdAmount: number, info: { buy?: BasePick; sellSymbol?: string }, again: boolean): Promise<unknown> {
+  const chain = EVM_CHAINS.base;
+  const r = await baseSwapQuote(chatId, fromToken, toToken, units);
+  if ("error" in r) return problem(chatId, `⚠️ ${esc(r.error ?? "")}`);
+  const calls = await lifiEvmCalls(chain, r.w.address, r.q).catch((e) => `Couldn't check the route: ${(e as Error).message}`);
+  if (typeof calls === "string") return problem(chatId, `⛔ ${esc(calls)}`);
+  const b = await prepareEvm(chain, r.w.address, calls);
+  if (typeof b === "string") return problem(chatId, `⚠️ ${esc(b)}`);
+  const fp = createHash("sha256").update(`baseswap|${fromToken}|${toToken}|${units}`).digest("hex").slice(0, 16);
+  const g = evmLimits(chatId, Number(r.q.estimate.fromAmountUSD ?? usdAmount), fp, []);
+  if (g.refused) return send(chatId, `⛔ <b>Blocked by Guard</b>\n${esc(g.refused)}\n\nNothing was sent.`, [MENU_BUTTON()]);
+  if (g.duplicateMinutes && !again) return baseSwapPreview(chatId, fromToken, toToken, units, usdAmount, info);
+  const res = await runEvm(chatId, chain, r.w, b);
+  if (res.hashes.length) recordSpend(chatId, g.fp, g.usd);
+  const last = res.hashes[res.hashes.length - 1];
+  if (res.status === "confirmed" && info.buy) saveBaseToken(chatId, { address: info.buy.address, symbol: info.buy.symbol });
+  if (res.status === "confirmed") return send(chatId, `✅ <b>Swapped on Base.</b> ${info.buy ? `${esc(info.buy.symbol)} is in your wallet; sell it any time from 🔥 Hot tokens → 🔵 Base.` : ""}`, [...(last ? [[evmLink(chain, last)]] : []), MENU_BUTTON()]);
+  return send(chatId, `⚠️ ${esc(res.stopped ?? "Not confirmed.")}${res.hashes.length ? "" : "\nNothing was sent."}`, [...(last ? [[evmLink(chain, last)]] : []), MENU_BUTTON()]);
+}
+
+const baseTokensFile = (chatId: number) => join(userDir(chatId), "base-tokens.json");
+function baseTokens(chatId: number): { address: string; symbol: string }[] {
+  try { return JSON.parse(readFileSync(baseTokensFile(chatId), "utf8")); } catch { return []; }
+}
+function saveBaseToken(chatId: number, t: { address: string; symbol: string }) {
+  const list = baseTokens(chatId).filter((x) => x.address !== t.address);
+  mkdirSync(userDir(chatId), { recursive: true, mode: 0o700 });
+  writeFileSync(baseTokensFile(chatId), JSON.stringify([t, ...list].slice(0, 20)), { mode: 0o600 });
+}
+
+async function baseSellList(chatId: number): Promise<unknown> {
+  const w = await evmWallet(chatId);
+  if (!w) return send(chatId, "No EVM wallet is shared with Blinkbox.", [MENU_BUTTON()]);
+  const held = (await Promise.all(baseTokens(chatId).map(async (t) => ({ ...t, bal: await erc20Balance(EVM_CHAINS.base, t.address, w.address).catch(() => 0n) })))).filter((t) => t.bal > 0n);
+  if (!held.length) return send(chatId, "You don't hold any tokens bought through Blinkbox on Base right now.", [[button("🔵 Hot on Base", (cid) => baseHotStart(cid))], MENU_BUTTON()]);
+  return send(chatId, "💰 <b>Sell on Base</b>\nSells your whole balance for USDC.", [
+    ...held.map((t) => [button(`Sell all ${t.symbol}`, (cid) => baseSwapPreview(cid, t.address, EVM_CHAINS.base.usdc, t.bal, 0, { sellSymbol: t.symbol }))]),
+    MENU_BUTTON(),
+  ]);
 }
 
 // ---------- Handles: pay @telegram or @x users instead of addresses ----------
@@ -1416,12 +1848,13 @@ const HELP = [
   "🔗 /connect: link your PayBox wallet (once)",
   "📈 /yield usdc: best live yields, ready to deposit",
   "🔁 /swap 0.01 SOL USDC: swap on Jupiter",
-  "💸 /send 0.001 SOL &lt;address or @username&gt;: send SOL or USDC",
+  "💸 /send 0.001 SOL &lt;address or @username&gt;: send SOL or USDC (USDC on Base, Arc and every PayBox EVM chain from the Send button)",
   "🪪 /handles: get paid with your Telegram or X @username",
   "➕ /topup: add funds (₦ /buy with naira, card via MoonPay, or from an exchange)",
   "🏦 /cashout: USDC to naira in your bank account",
   "🏧 /paybank: pay naira to anyone's bank (or just send a photo of their details)",
-  "🔥 /hot: hottest Solana tokens, safety-checked",
+  "🔥 /hot: hottest Solana tokens, safety-checked · /hotbase for Base",
+  "🌉 /bridge: move USDC between Solana, Base, Arc and 8 more chains",
   "🔮 /predict: bet YES/NO on real-world events",
   "🔍 Paste any blink or dial.to link to check it and run it",
   "👛 /wallet · /disconnect",
@@ -1600,18 +2033,18 @@ async function hotStart(chatId: number, usd = 5): Promise<unknown> {
   return send(chatId, lines.join("\n"), [
     [1, 5, 10].map((amount) => button(`🛒 Top 2 · $${amount} each`, (cid) => buyQueue(cid, top2, amount))),
     picks.map((p) => button(`Buy ${p.symbol}`, (cid) => amountPickerUsd(cid, p.symbol, (amount) => buyQueue(cid, [p], amount)))),
-    [button("🔄 Rescan", (cid) => hotStart(cid))],
+    [button("🔄 Rescan", (cid) => hotStart(cid)), button("🔵 Hot on Base", (cid) => baseHotStart(cid))],
     MENU_BUTTON(),
   ]);
 }
 
-function amountPickerUsd(chatId: number, label: string, run: (usd: number) => Promise<unknown>): Promise<unknown> {
+function amountPickerUsd(chatId: number, label: string, run: (usd: number) => Promise<unknown>, paidIn = "SOL"): Promise<unknown> {
   const askCustom = (): Promise<unknown> => ask(chatId, "✏️ Type an amount in US dollars (e.g. 3):", async (text) => {
     const usd = Number(text.trim().replace("$", ""));
     if (!Number.isFinite(usd) || usd <= 0) return send(chatId, "That isn't a valid amount.", [[button("Try again", () => askCustom())], MENU_BUTTON()]);
     return run(usd);
   });
-  return send(chatId, `🛒 <b>Buy ${esc(label)}</b>\nHow much (paid in SOL)?`, [[1, 5, 10, 25].map((u) => button(`$${u}`, () => run(u))), [button("✏️ Custom", () => askCustom())], MENU_BUTTON()]);
+  return send(chatId, `🛒 <b>Buy ${esc(label)}</b>\nHow much (paid in ${esc(paidIn)})?`, [[1, 5, 10, 25].map((u) => button(`$${u}`, () => run(u))), [button("✏️ Custom", () => askCustom())], MENU_BUTTON()]);
 }
 
 // Buys each token one after another: preview, Confirm, sign, then the next.
@@ -1800,7 +2233,7 @@ function menu(chatId: number, intro = "What would you like to do?") {
   const rows: Keyboard = [
     [button("💸 Send", (cid) => sendStart(cid)), button("🔁 Swap", (cid) => swapStart(cid))],
     [button("➕ Top up", (cid) => topUp(cid)), button("🏦 Cash out", (cid) => cashoutStart(cid))],
-    [button("🏧 Pay a bank account", (cid) => payBankStart(cid))],
+    [button("🏧 Pay a bank account", (cid) => payBankStart(cid)), button("🌉 Bridge", (cid) => bridgeStart(cid))],
     [button("🔥 Hot tokens", (cid) => hotStart(cid)), button("🔮 Predictions", (cid) => predictStart(cid))],
     [button("📈 Earn", (cid) => earnStart(cid)), button("🛡 Guard", (cid) => guardSettings(cid))],
     [button("🔍 Check a link", (cid) => askLink(cid)), button("👛 Wallet", (cid) => showWallet(cid))],
@@ -1839,7 +2272,7 @@ function amountPicker(chatId: number, token: string, title: string, run: (amount
 // Send: token → recipient → amount → preview → Confirm
 async function sendStart(chatId: number) {
   if (await needLink(chatId)) return;
-  return send(chatId, "💸 <b>Send</b>\nWhich token?", [[button("◎ SOL", (cid) => sendTo(cid, "SOL")), button("$ USDC (Solana)", (cid) => sendTo(cid, "USDC"))], [button("🔵 USDC on Base", (cid) => sendToEvm(cid, "base")), button("🟣 USDC on Arc", (cid) => sendToEvm(cid, "arc"))], MENU_BUTTON()]);
+  return send(chatId, "💸 <b>Send</b>\nWhich token?", [[button("◎ SOL", (cid) => sendTo(cid, "SOL")), button("$ USDC (Solana)", (cid) => sendTo(cid, "USDC"))], [button("🔵 USDC on Base", (cid) => sendToEvm(cid, "base")), button("🟣 USDC on Arc", (cid) => sendToEvm(cid, "arc"))], [button("🌐 Other EVM chains", (cid) => evmChainPicker(cid, "💸 Send dollars on which chain?", EVM_ORDER.slice(2), (c2, k) => sendToEvm(c2, k)))], MENU_BUTTON()]);
 }
 
 async function sendTo(chatId: number, token: string): Promise<unknown> {
@@ -1920,18 +2353,24 @@ async function showWallet(chatId: number) {
   const w = await wallet(chatId);
   if (!w) return send(chatId, "No Solana wallet is shared with Blinkbox. Tap Disconnect, then Connect again and allow your Solana wallet.", [MENU_BUTTON()]);
   const [bal, sUsdc, evm] = await Promise.all([rpc("getBalance", [w.address]), usdcAccounts(w.address), evmWallet(chatId)]);
-  const { base, arc } = EVM_CHAINS;
-  const [bUsdc, bGas, aUsdc] = evm ? await Promise.all([evmUsdc(base, evm.address).catch(() => NaN), evmGasBalance(base, evm.address).catch(() => -1n), evmUsdc(arc, evm.address).catch(() => NaN)]) : [NaN, -1n, NaN];
+  const { base } = EVM_CHAINS;
+  const [bGas, ...stables] = evm ? await Promise.all([evmGasBalance(base, evm.address).catch(() => -1n), ...EVM_ORDER.map((k) => evmUsdc(EVM_CHAINS[k], evm.address).catch(() => NaN))]) : [-1n];
+  const evmLines = evm ? EVM_ORDER.flatMap((k, i) => {
+    const c = EVM_CHAINS[k], v = stables[i] as number;
+    // Base and Arc always show; the other chains only when they hold something.
+    if (k !== "base" && k !== "arc" && !(v > 0)) return [];
+    return [`${c.icon} ${c.name}: <b>${Number.isNaN(v) ? "?" : v}</b> ${c.stable}${k === "base" ? ` · ETH: <b>${bGas < 0n ? "?" : fmtGas(bGas as bigint) || "0"}</b>` : k === "arc" ? " (fees paid in USDC)" : ""}`];
+  }) : [];
   return send(chatId, [
     "👛 <b>Your wallets</b>",
     "",
     "◎ <b>Solana</b>",
     `<code>${w.address}</code>`,
     `SOL: <b>${(bal.result?.value ?? 0) / 1e9}</b> · USDC: <b>${sUsdc.balance}</b>`,
-    ...(evm ? ["", "🔵 <b>Base</b> · 🟣 <b>Arc</b> (same address on both)", `<code>${evm.address}</code>`, `Base USDC: <b>${Number.isNaN(bUsdc) ? "?" : bUsdc}</b> · ETH: <b>${bGas < 0n ? "?" : fmtGas(bGas) || "0"}</b>`, `Arc USDC: <b>${Number.isNaN(aUsdc) ? "?" : aUsdc}</b> (fees paid in USDC)`] : []),
+    ...(evm ? ["", "🌐 <b>EVM</b> (one address on Base, Arc and 8 more chains)", `<code>${evm.address}</code>`, ...evmLines] : []),
   ].join("\n"), [
     [button("➕ Top up", (cid) => topUp(cid)), { text: "View on Solscan", url: `https://solscan.io/account/${w.address}` }],
-    [button("🪪 My handles", (cid) => handlesScreen(cid))],
+    [button("🪪 My handles", (cid) => handlesScreen(cid)), button("🌉 Bridge", (cid) => bridgeStart(cid))],
     [button("🔌 Disconnect", async (cid) => { rmSync(userDir(cid), { recursive: true, force: true }); wallets.delete(cid); evmWallets.delete(cid); await send(cid, "Disconnected. You can also revoke Blinkbox in the PayBox app under Agents.", [MENU_BUTTON()]); })],
     MENU_BUTTON(),
   ]);
@@ -1958,6 +2397,8 @@ async function onMessage(chatId: number, text: string) {
     case "/odds": return args.length ? cmdOdds(chatId, args.join(" ")) : predictStart(chatId);
     case "/predict": return predictStart(chatId);
     case "/hot": return hotStart(chatId);
+    case "/hotbase": return baseHotStart(chatId);
+    case "/bridge": return bridgeStart(chatId);
     case "/topup": return topUp(chatId);
     case "/buy": return buyStart(chatId);
     case "/cashout": return cashoutStart(chatId);
@@ -1985,6 +2426,8 @@ async function main() {
     { command: "swap", description: "Swap tokens, e.g. /swap 0.01 SOL USDC" },
     { command: "send", description: "Send SOL or USDC" },
     { command: "hot", description: "Hottest Solana tokens, safety-checked" },
+    { command: "hotbase", description: "Hottest Base tokens, safety-checked" },
+    { command: "bridge", description: "Move USDC between Solana, Base, Arc and more" },
     { command: "predict", description: "Bet YES/NO on real-world events" },
     { command: "topup", description: "Add funds to your wallet" },
     { command: "buy", description: "Buy USDC with naira" },

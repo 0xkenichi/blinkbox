@@ -1,6 +1,6 @@
 # Blinkbox
 
-Send money, earn yield, cash out to your bank. All from Telegram, all signed by your own wallet.
+Send money, bridge it, earn on it, cash it out to your bank. Solana plus every EVM chain PayBox supports, all from Telegram, all signed by your own wallet.
 
 **Try it:** [t.me/BlinkboxPaybot](https://t.me/BlinkboxPaybot) · **Site:** [blinkbox-ten.vercel.app](https://blinkbox-ten.vercel.app) · **Built by:** [@0xKenichi](https://x.com/0xKenichi)
 
@@ -21,12 +21,14 @@ You need Telegram and a PayBox account. That's it.
 
 | | |
 |---|---|
-| **Send** | SOL and USDC on Solana. USDC on **Base** and **Arc**. Pay an address or just an `@username` (Telegram or X). |
+| **Send** | SOL and USDC on Solana. USDC on **Base**, **Arc**, Ethereum, Arbitrum, Optimism, Polygon, BNB Chain, Avalanche and HyperEVM, plus USDG on Robinhood Chain. Pay an address or just an `@username` (Telegram or X). |
+| **Bridge** | Move USDC between any two of those 11 chains, e.g. Base → Arc or Base → Solana, routed by [LI.FI](https://li.fi) (Across, Relay, CCTP). You see what lands and the all-in fee before you sign. |
+| **USDC-only life** | On **Arc**, gas is paid in USDC. Hold one token, pay for everything with it, fees included. |
 | **Naira in / out** | Buy USDC with a normal bank transfer. Cash out to any of 174 Nigerian banks and wallets (OPay, Moniepoint, PalmPay…), usually in under two minutes. Powered by [Paycrest](https://paycrest.io). |
 | **Pay a bank account** | Send USDC; naira lands in someone else's bank account. The bank confirms the account name before you pay. |
 | **Earn** | Live USDC/SOL yields from Kamino, Jupiter Lend, Lulo, MarginFi, Drift and more. Deposit and withdraw in two taps. |
 | **Swap** | Jupiter routes, e.g. `/swap 0.01 SOL USDC`. |
-| **Hot tokens** | Solana's trending tokens, but only the ones that pass: no mint or freeze authority, real liquidity, no whale concentration, no wash trading, a sane price impact. |
+| **Hot tokens** | Trending tokens on **Solana** and **Base**, but only the ones that pass: no mint or freeze authority, real liquidity, no whale concentration, no wash trading, a sane price impact. On Base it also checks for honeypots, buy/sell tax and blacklist functions ([GoPlus](https://gopluslabs.io)), and you can buy with USDC or ETH and sell back to USDC. |
 | **Predictions** | Live odds on real-world events. Betting with USDC turns on with a Jupiter key. |
 | **Any blink** | Paste a `dial.to`, `solana-action:` or Actions link. Blinkbox checks it against the Dialect registry before you run it. |
 | **Top up** | Card or bank through MoonPay inside PayBox, or naira through Paycrest. |
@@ -67,6 +69,7 @@ Every transaction goes through Guard before you see a Confirm button.
 - **Catches double payments.** The same transfer twice within 10 minutes needs an explicit "yes, again".
 - **Checks recipients.** Refuses token-mint and program addresses (money sent there is gone) and flags addresses that have never been used.
 - **Checks links.** Hosts flagged malicious in the Dialect registry are refused outright.
+- **Pins EVM routes.** Swaps and bridges must go to LI.FI's own contract on that chain, approvals are for the exact amount (never unlimited), and a swap that would lose more than 5% to price impact is refused.
 
 ## Repo layout
 
@@ -109,7 +112,8 @@ Without a Paycrest key the naira flows run in test mode: real rates, real bank l
 
 - Blinks that need a second signer (many NFT mints) or come pre-signed can't go through PayBox yet. Blinkbox tells you why instead of trying.
 - Paycrest supports Solana and Base for naira, not Arc yet. To get USDC onto Arc, withdraw from an exchange that supports Arc or bridge with Circle's CCTP.
-- Base sends need a little ETH for gas. Arc takes its fees in USDC, so USDC alone is enough there.
+- EVM chains other than Arc need a little of their gas token (ETH, POL, BNB, AVAX, HYPE). Arc takes its fees in USDC, so USDC alone is enough there.
+- Bridges and EVM swaps are built, Guard-checked and simulated against mainnet, but I haven't pushed a live one through PayBox yet. Solana sends, swaps and the naira flows have real mainnet receipts above.
 - Photo-to-pay (snap a bank detail, pay it) is built and waiting on a vision API key.
 
 ## Security
