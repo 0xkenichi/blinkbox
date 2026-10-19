@@ -28,7 +28,7 @@ Buy USDC by bank transfer, cash out to 174 Nigerian banks via @paycrest.
 > Guard on every transaction
 Simulates first, spend limits, blocks drainers, pins every swap and bridge to LI.FI's own contract, exact-amount approvals only.
 
-Code is open: github.com/0xkenichi/blinkbox
+Code is public: github.com/0xkenichi/blinkbox
 Try it: t.me/BlinkboxPaybot
 
 @moonpay @PayBox
