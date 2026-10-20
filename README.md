@@ -68,6 +68,7 @@ Every transaction goes through Guard before you see a Confirm button.
 - **Spending limits.** $25 per transaction and $100 a day by default; change them with `/guard`.
 - **Catches double payments.** The same transfer twice within 10 minutes needs an explicit "yes, again".
 - **Catches lookalike addresses.** Scammers plant fake transfers to an address that starts and ends like one you've paid (address poisoning). Guard remembers who you've paid and blocks any new address that matches the ends but not the middle, on Solana and every EVM chain, and shows you exactly where they differ.
+- **Warns you about planted transfers.** A background watcher scans each wallet's newest transfers on Solana, Base, Arc and any other chain you use. When a scammer plants a fake transfer (a 0-value or fake-token transfer that looks like it came from you, or dust from a lookalike), Blinkbox messages you right away and refuses to send to that address from then on.
 - **Checks recipients.** Refuses token-mint and program addresses (money sent there is gone) and flags addresses that have never been used.
 - **Checks links.** Hosts flagged malicious in the Dialect registry are refused outright.
 - **Pins EVM routes.** Swaps and bridges must go to LI.FI's own contract on that chain, approvals are for the exact amount (never unlimited), and a swap that would lose more than 5% to price impact is refused.

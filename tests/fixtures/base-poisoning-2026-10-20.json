@@ -1,0 +1,240 @@
+{
+ "note": "Real address-poisoning attack on Base, 2026-10-20. Public on-chain data: receipts of the attack tx, the wallet owner real send, and the Paycrest delivery.",
+ "chain": "base",
+ "wallet": "0xd4623d1f33d94b012bdb92376894bfea393c5107",
+ "knownRecipient": "0xbf9428a7c9d7e79c6a49dbc7e55f6483c34c3656",
+ "txs": [
+  {
+   "label": "attack",
+   "hash": "0x74d253da74809a7aff0dccd57fc54199e2890cbc455e029fa6b36582043bca2e",
+   "block": 52866715,
+   "sender": "0x3959e49639d3b1bd9d1746a7971155e94fecf1f6",
+   "logs": [
+    {
+     "token": "0xeb37c874ff1fbbe442f017e91db2136c13c643d4",
+     "from": "0x225a4ebfb7c47068b56f55586347942ee7e002db",
+     "to": "0x47f78375ba4746a8181b46346d5bf8fb67b5a501",
+     "value": "5000000"
+    },
+    {
+     "token": "0xeb37c874ff1fbbe442f017e91db2136c13c643d4",
+     "from": "0x2b7eeb54de4d3967b3d93935331f0b67d8162223",
+     "to": "0x7bd69018c4438ccf81278727a95dd96dc6474790",
+     "value": "5000000"
+    },
+    {
+     "token": "0xeb37c874ff1fbbe442f017e91db2136c13c643d4",
+     "from": "0x3036d517a25a286ab6100c9064da4eb9ffa1c0a1",
+     "to": "0x0b594d5eccb433277976650bb208d0b986d19d1b",
+     "value": "5000000"
+    },
+    {
+     "token": "0xeb37c874ff1fbbe442f017e91db2136c13c643d4",
+     "from": "0x86ec69f12ba2f8e0533273ad5051fb69a38ac3ac",
+     "to": "0x82d03f5ecddf1271bbc994a7dbb94cac4e019218",
+     "value": "1000000"
+    },
+    {
+     "token": "0xeb37c874ff1fbbe442f017e91db2136c13c643d4",
+     "from": "0x962ea1e34dfdae11590460ab1ab918e6d9346212",
+     "to": "0xb154fd6232b9bca4297c6ee440ef4929146c26f0",
+     "value": "110700000"
+    },
+    {
+     "token": "0xeb37c874ff1fbbe442f017e91db2136c13c643d4",
+     "from": "0x37897f2fa0836205e49b2d134e1dfe3ebe0b4fdd",
+     "to": "0xc7963978ef45d4231f002a9ebef6686d68b7a2fc",
+     "value": "5000000"
+    },
+    {
+     "token": "0xeb37c874ff1fbbe442f017e91db2136c13c643d4",
+     "from": "0xd4623d1f33d94b012bdb92376894bfea393c5107",
+     "to": "0xbf949b6fb17874391b318a12bcaecd4921b23656",
+     "value": "1460000"
+    },
+    {
+     "token": "0xeb37c874ff1fbbe442f017e91db2136c13c643d4",
+     "from": "0x86ec69f12ba2f8e0533273ad5051fb69a38ac3ac",
+     "to": "0x525516b2636143fc066ac2a084a2bb392ffb0462",
+     "value": "1000000"
+    },
+    {
+     "token": "0xeb37c874ff1fbbe442f017e91db2136c13c643d4",
+     "from": "0x86ec69f12ba2f8e0533273ad5051fb69a38ac3ac",
+     "to": "0x6645a6a96b6abdca357315d3405bb0712efdcf5d",
+     "value": "1000000"
+    },
+    {
+     "token": "0xeb37c874ff1fbbe442f017e91db2136c13c643d4",
+     "from": "0x884def6c978b1abaa20bb5211213dad6a0718228",
+     "to": "0x24815d20c3b2c6524884b30155eccd98c90b0f2f",
+     "value": "1600000"
+    },
+    {
+     "token": "0xeb37c874ff1fbbe442f017e91db2136c13c643d4",
+     "from": "0xcbebed80c162e378114eb40316b30d8ed2732c25",
+     "to": "0x56ec06149e6bd8db60e6ccdc7aa62b2a1cfa5336",
+     "value": "670000000"
+    },
+    {
+     "token": "0xeb37c874ff1fbbe442f017e91db2136c13c643d4",
+     "from": "0x86ec69f12ba2f8e0533273ad5051fb69a38ac3ac",
+     "to": "0x7e053e1ce6b050c46928b5d1298ccb4603e60e4c",
+     "value": "1000000"
+    },
+    {
+     "token": "0xeb37c874ff1fbbe442f017e91db2136c13c643d4",
+     "from": "0x93c20947353996eb928af059c07546814a7f88c6",
+     "to": "0x8b3e19c69c0b37ecd645fbdeb068605b734c852c",
+     "value": "20000017"
+    },
+    {
+     "token": "0xeb37c874ff1fbbe442f017e91db2136c13c643d4",
+     "from": "0x7346ce9a0ffb33bb63bf96b0b857caab8d17f88f",
+     "to": "0xc0b9c5d6e93ab2c7f25c798bd4b0285825ad9deb",
+     "value": "1600000"
+    },
+    {
+     "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+     "from": "0x225a4ebfb7c47068b56f55586347942ee7e002db",
+     "to": "0x47f78375ba4746a8181b46346d5bf8fb67b5a501",
+     "value": "0"
+    },
+    {
+     "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+     "from": "0x2b7eeb54de4d3967b3d93935331f0b67d8162223",
+     "to": "0x7bd69018c4438ccf81278727a95dd96dc6474790",
+     "value": "0"
+    },
+    {
+     "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+     "from": "0x3036d517a25a286ab6100c9064da4eb9ffa1c0a1",
+     "to": "0x0b594d5eccb433277976650bb208d0b986d19d1b",
+     "value": "0"
+    },
+    {
+     "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+     "from": "0x86ec69f12ba2f8e0533273ad5051fb69a38ac3ac",
+     "to": "0x82d03f5ecddf1271bbc994a7dbb94cac4e019218",
+     "value": "0"
+    },
+    {
+     "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+     "from": "0x962ea1e34dfdae11590460ab1ab918e6d9346212",
+     "to": "0xb154fd6232b9bca4297c6ee440ef4929146c26f0",
+     "value": "0"
+    },
+    {
+     "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+     "from": "0x37897f2fa0836205e49b2d134e1dfe3ebe0b4fdd",
+     "to": "0xc7963978ef45d4231f002a9ebef6686d68b7a2fc",
+     "value": "0"
+    },
+    {
+     "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+     "from": "0xd4623d1f33d94b012bdb92376894bfea393c5107",
+     "to": "0xbf949b6fb17874391b318a12bcaecd4921b23656",
+     "value": "0"
+    },
+    {
+     "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+     "from": "0x86ec69f12ba2f8e0533273ad5051fb69a38ac3ac",
+     "to": "0x525516b2636143fc066ac2a084a2bb392ffb0462",
+     "value": "0"
+    },
+    {
+     "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+     "from": "0x86ec69f12ba2f8e0533273ad5051fb69a38ac3ac",
+     "to": "0x6645a6a96b6abdca357315d3405bb0712efdcf5d",
+     "value": "0"
+    },
+    {
+     "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+     "from": "0x884def6c978b1abaa20bb5211213dad6a0718228",
+     "to": "0x24815d20c3b2c6524884b30155eccd98c90b0f2f",
+     "value": "0"
+    },
+    {
+     "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+     "from": "0xcbebed80c162e378114eb40316b30d8ed2732c25",
+     "to": "0x56ec06149e6bd8db60e6ccdc7aa62b2a1cfa5336",
+     "value": "0"
+    },
+    {
+     "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+     "from": "0x86ec69f12ba2f8e0533273ad5051fb69a38ac3ac",
+     "to": "0x7e053e1ce6b050c46928b5d1298ccb4603e60e4c",
+     "value": "0"
+    },
+    {
+     "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+     "from": "0x93c20947353996eb928af059c07546814a7f88c6",
+     "to": "0x8b3e19c69c0b37ecd645fbdeb068605b734c852c",
+     "value": "0"
+    },
+    {
+     "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+     "from": "0x7346ce9a0ffb33bb63bf96b0b857caab8d17f88f",
+     "to": "0xc0b9c5d6e93ab2c7f25c798bd4b0285825ad9deb",
+     "value": "0"
+    }
+   ]
+  },
+  {
+   "label": "own-send",
+   "hash": "0x3b35f64b4874f18399e4f1b1517cf1074ac8e4ca78332b34ed99e10710b96ab8",
+   "block": 52866647,
+   "sender": "0xd4623d1f33d94b012bdb92376894bfea393c5107",
+   "logs": [
+    {
+     "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+     "from": "0xd4623d1f33d94b012bdb92376894bfea393c5107",
+     "to": "0xbf9428a7c9d7e79c6a49dbc7e55f6483c34c3656",
+     "value": "1460000"
+    }
+   ]
+  },
+  {
+   "label": "paycrest-delivery",
+   "hash": "0x31bd229480ba21b9168f6fb17916076ee9ae4daa621ea9b40d7c82561c9345eb",
+   "block": 52866627,
+   "sender": "0xa00cf511725881bbaf39c8602b94fe1c30c5270a",
+   "logs": [
+    {
+     "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+     "from": "0xd02e6a410d9dfcfca13b4731d6ae08889c3097b1",
+     "to": "0x30f6a8457f8e42371e204a9c103f2bd42341dd0f",
+     "value": "1469570"
+    },
+    {
+     "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+     "from": "0x30f6a8457f8e42371e204a9c103f2bd42341dd0f",
+     "to": "0xa7786ed5883bdc7bdb33987306b3f644c64ec67d",
+     "value": "3674"
+    },
+    {
+     "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+     "from": "0x30f6a8457f8e42371e204a9c103f2bd42341dd0f",
+     "to": "0xd02e6a410d9dfcfca13b4731d6ae08889c3097b1",
+     "value": "3673"
+    },
+    {
+     "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+     "from": "0x30f6a8457f8e42371e204a9c103f2bd42341dd0f",
+     "to": "0xd4623d1f33d94b012bdb92376894bfea393c5107",
+     "value": "1462223"
+    }
+   ]
+  }
+ ],
+ "tokens": {
+  "0xeb37c874ff1fbbe442f017e91db2136c13c643d4": {
+   "symbol": "ÚSDС",
+   "name": "ÚSDС"
+  },
+  "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": {
+   "symbol": "USDC",
+   "name": "USD Coin"
+  }
+ }
+}

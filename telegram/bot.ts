@@ -15,6 +15,7 @@ import {
 import { findBlinks } from "../src/catalog.js";
 import { guardInstructions, guardRefusal } from "../src/guard.js";
 import { lookalikeOf, markDifference, type AddressKind } from "../src/lookalike.js";
+import { findPoisoning, type PoisonFinding, type PoisonReason, type TokenInfo, type Transfer } from "../src/poison.js";
 import { maskAccount, naira, parseNaira, POPULAR_BANKS, rampProvider, type Bank, type BuyerKyc, type BuyOrder, type Payout, type Quote, type RampNetwork, type SellOrder } from "./ramp.js";
 import { isPublicKey, parseTransaction, payboxIncompatibility, summarize } from "../src/solana.js";
 
@@ -551,7 +552,21 @@ function rememberAddress(chatId: number, kind: AddressKind, address: string) {
   writeFileSync(knownFile(chatId), JSON.stringify(list), { mode: 0o600 });
 }
 
-async function lookalikeCheck(chatId: number, kind: AddressKind, address: string): Promise<{ original: string; html: string } | undefined> {
+async function lookalikeCheck(chatId: number, kind: AddressKind, address: string): Promise<{ original?: string; html: string } | undefined> {
+  const planted = plantedMatch(chatId, kind, address);
+  if (planted) {
+    return {
+      original: planted.original,
+      html: [
+        "⛔ <b>Blocked by Guard: scam address</b>",
+        `A scammer planted this address in your wallet history on ${planted.chain === "solana" ? "Solana" : EVM_CHAINS[planted.chain as EvmKey]?.name ?? planted.chain} (address poisoning).`,
+        "",
+        planted.original ? `It imitates:\n${markDifference(planted.original, address, kind)}` : `<code>${address}</code>`,
+        "",
+        "Get the address fresh from the person you're paying. Nothing was sent.",
+      ].join("\n"),
+    };
+  }
   const own = kind === "solana" ? (await wallet(chatId))?.address : (await evmWallet(chatId))?.address;
   const known = knownAddresses(chatId).filter((k) => k.kind === kind).map((k) => k.address);
   const original = lookalikeOf(address, [...known, ...(own ? [own] : [])], kind);
@@ -1463,7 +1478,8 @@ function sendToEvm(chatId: number, key: EvmKey): Promise<unknown> {
     const to = text.trim();
     if (!isEvmAddress(to)) return send(chatId, `That isn't a ${chain.name} address. It should start with 0x and be 42 characters long.`, [[button("Try again", (cid) => sendToEvm(cid, key))], MENU_BUTTON()]);
     const look = await lookalikeCheck(chatId, "evm", to);
-    if (look) return send(chatId, look.html, [[button(`✅ Use ${shortEvm(look.original)} (the one I paid)`, () => amountPicker(chatId, chain.stable, `${chain.icon} Send ${chain.stable} on ${chain.name} to <code>${shortEvm(look.original)}</code>`, (amount) => previewEvm(chatId, key, look.original, Number(amount))))], [button("Try another address", (cid) => sendToEvm(cid, key))], MENU_BUTTON()]);
+    const orig = look?.original;
+    if (look) return send(chatId, look.html, [...(orig ? [[button(`✅ Use ${shortEvm(orig)} (the one I paid)`, () => amountPicker(chatId, chain.stable, `${chain.icon} Send ${chain.stable} on ${chain.name} to <code>${shortEvm(orig)}</code>`, (amount) => previewEvm(chatId, key, orig, Number(amount))))]] : []), [button("Try another address", (cid) => sendToEvm(cid, key))], MENU_BUTTON()]);
     return amountPicker(chatId, chain.stable, `${chain.icon} Send ${chain.stable} on ${chain.name} to <code>${shortEvm(to)}</code>`, (amount) => previewEvm(chatId, key, to, Number(amount)));
   });
 }
@@ -1485,7 +1501,8 @@ async function previewEvm(chatId: number, key: EvmKey, to: string, amount: numbe
   if (!w) return send(chatId, "No EVM wallet is shared with Blinkbox. In PayBox, allow your EVM wallet for Blinkbox, or tap Wallet → Disconnect and Connect again.", [MENU_BUTTON()]);
   await tg("sendChatAction", { chat_id: chatId, action: "typing" });
   const look = await lookalikeCheck(chatId, "evm", to);
-  if (look) return send(chatId, look.html, [[button(`✅ Send to ${shortEvm(look.original)} instead`, (cid) => previewEvm(cid, key, look.original, amount))], MENU_BUTTON()]);
+  const orig = look?.original;
+  if (look) return send(chatId, look.html, [...(orig ? [[button(`✅ Send to ${shortEvm(orig)} instead`, (cid) => previewEvm(cid, key, orig, amount))]] : []), MENU_BUTTON()]);
   const b = await buildEvmSend(chain, w.address, to, amount);
   if (typeof b === "string") return problem(chatId, `⚠️ ${esc(b)}`);
   const g = await evmGuard(chatId, chain, to, amount);
@@ -2106,7 +2123,8 @@ async function cmdSend(chatId: number, args: string[]) {
   const sendNow = (addr: string) => previewWith(chatId, () => build(chatId, `https://solana-sbl.dial.to/api/v0/transfer/${encodeURIComponent(t)}`, 0, { to: addr, amount }), { recipient: addr });
   if (isPublicKey(to)) {
     const look = await lookalikeCheck(chatId, "solana", to);
-    if (look) return send(chatId, look.html, [[button(`✅ Send to ${look.original.slice(0, 4)}…${look.original.slice(-4)} instead`, () => sendNow(look.original))], MENU_BUTTON()]);
+    const orig = look?.original;
+    if (look) return send(chatId, look.html, [...(orig ? [[button(`✅ Send to ${orig.slice(0, 4)}…${orig.slice(-4)} instead`, () => sendNow(orig))]] : []), MENU_BUTTON()]);
   }
   return sendNow(to);
 }
@@ -2493,7 +2511,8 @@ async function sendTo(chatId: number, token: string): Promise<unknown> {
     }
     if (!isPublicKey(to)) return send(chatId, "That doesn't look like a Solana address.", [[button("Try again", (cid) => sendTo(cid, token))], MENU_BUTTON()]);
     const look = await lookalikeCheck(chatId, "solana", to);
-    if (look) return send(chatId, look.html, [[button(`✅ Use ${look.original.slice(0, 4)}…${look.original.slice(-4)} (the one I paid)`, () => pick(look.original))], [button("Try another address", (cid) => sendTo(cid, token))], MENU_BUTTON()]);
+    const orig = look?.original;
+    if (look) return send(chatId, look.html, [...(orig ? [[button(`✅ Use ${orig.slice(0, 4)}…${orig.slice(-4)} (the one I paid)`, () => pick(orig))]] : []), [button("Try another address", (cid) => sendTo(cid, token))], MENU_BUTTON()]);
     const check = await recipientProblem(to);
     if (check.block) return send(chatId, `⛔ <b>Blocked by Guard</b>\n${esc(check.block)}`, [[button("Try another address", (cid) => sendTo(cid, token))], MENU_BUTTON()]);
     return pick(to, check.note);
@@ -2704,10 +2723,233 @@ function statsScreen(chatId: number): Promise<unknown> {
   ].join("\n"), [[button("🔄 Refresh", (cid) => (isOwner(cid) ? statsScreen(cid) : menu(cid)))], MENU_BUTTON()]);
 }
 
+// ---------- Poisoning watch: warn people before they copy a planted address ----------
+// Every few minutes, scan each connected wallet's newest token transfers (Base and Arc always,
+// other EVM chains once the wallet has used them, and Solana). Anything planted (an unsigned
+// zero-value or fake-token transfer "from" the wallet, or dust from a lookalike) gets one alert
+// per address, and the address goes on that user's blocklist so Guard refuses it outright.
+
+type Planted = { kind: AddressKind; address: string; original?: string; chain: string; tx: string; reasons: PoisonReason[]; fakeToken?: string; t: number };
+const plantedFile = (chatId: number) => join(userDir(chatId), "planted.json");
+function plantedAddresses(chatId: number): Planted[] {
+  try { return JSON.parse(readFileSync(plantedFile(chatId), "utf8")); } catch { return []; }
+}
+const sameAddr = (kind: AddressKind, a: string, b: string) => (kind === "evm" ? a.toLowerCase() === b.toLowerCase() : a === b);
+const plantedMatch = (chatId: number, kind: AddressKind, address: string) => plantedAddresses(chatId).find((p) => p.kind === kind && sameAddr(kind, p.address, address));
+
+type WatchState = { evm?: string; sol?: string; cursors: Record<string, number>; active: Record<string, { on: boolean; at: number }>; solUntil?: string };
+const watchFile = (chatId: number) => join(userDir(chatId), "watch.json");
+function watchState(chatId: number): WatchState {
+  try { return { cursors: {}, active: {}, ...JSON.parse(readFileSync(watchFile(chatId), "utf8")) }; } catch { return { cursors: {}, active: {} }; }
+}
+const saveWatch = (chatId: number, s: WatchState) => writeFileSync(watchFile(chatId), JSON.stringify(s), { mode: 0o600 });
+
+const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+// Blocks per getLogs call, kept small for public RPCs; at most WATCH_CHUNKS calls per chain per tick.
+const WATCH_RANGE: Partial<Record<EvmKey, number>> = { base: 500, arc: 2000, ethereum: 100, arbitrum: 1000, optimism: 500, polygon: 500, bnb: 500, avalanche: 500, hyperevm: 1000, robinhood: 2000 };
+// Log queries need RPCs that allow them: Base's own endpoint refuses eth_getLogs from servers, and
+// publicnode only answers queries that name token contracts (so we ask about the real stablecoins).
+const LOGS_RPC: Partial<Record<EvmKey, string[]>> = {
+  base: ["https://base-rpc.publicnode.com", "https://base.drpc.org"],
+  ethereum: ["https://ethereum-rpc.publicnode.com"],
+  arbitrum: ["https://arbitrum-one-rpc.publicnode.com", "https://arb1.arbitrum.io/rpc"],
+  optimism: ["https://optimism-rpc.publicnode.com"],
+  polygon: ["https://polygon-bor-rpc.publicnode.com"],
+  bnb: ["https://bsc-rpc.publicnode.com"],
+  avalanche: ["https://avalanche-c-chain-rpc.publicnode.com"],
+};
+async function logsRpc(key: EvmKey, method: string, params: unknown[]): Promise<any> {
+  let last: Error | undefined;
+  for (const url of [...(LOGS_RPC[key] ?? []), EVM_CHAINS[key].rpc]) {
+    try { return await evmRpc({ ...EVM_CHAINS[key], rpc: url }, method, params); } catch (e) { last = e as Error; }
+  }
+  throw last ?? new Error("no RPC");
+}
+const WATCH_CHUNKS = 6;
+const WATCH_EVERY_MS = 5 * 60_000;
+const ALWAYS_WATCHED: EvmKey[] = ["base", "arc"];
+const watchBackoff = new Map<string, number>(); // chain → retry after (ms epoch)
+const tokenInfoCache = new Map<string, TokenInfo>();
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function abiString(hex: string | undefined): string {
+  if (!hex || hex === "0x") return "";
+  const b = Buffer.from(hex.slice(2), "hex");
+  if (b.length === 32) return b.toString("utf8").replace(/\0+$/, ""); // bytes32 symbols
+  try { return b.subarray(64, 64 + Number(BigInt(`0x${hex.slice(66, 130)}`))).toString("utf8"); } catch { return ""; }
+}
+async function evmTokenInfo(chain: EvmChain, token: string): Promise<TokenInfo> {
+  const key = `${chain.key}:${token.toLowerCase()}`;
+  const hit = tokenInfoCache.get(key);
+  if (hit) return hit;
+  const [symbol, name] = await Promise.all([
+    evmRpc(chain, "eth_call", [{ to: token, data: "0x95d89b41" }, "latest"]).then(abiString).catch(() => ""),
+    evmRpc(chain, "eth_call", [{ to: token, data: "0x06fdde03" }, "latest"]).then(abiString).catch(() => ""),
+  ]);
+  const info = { symbol, name };
+  tokenInfoCache.set(key, info);
+  return info;
+}
+
+// Plain stablecoins people might really hold, so a transfer of them is never called fake.
+const OFFICIAL_EXTRA: Partial<Record<EvmKey, string[]>> = { base: ["0xfde4c96c8593536e31f229ea8f37b2ada2699bb2", "0x50c5725949a6f0c72e6c4a641f24049a917db0cb", "0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca"] };
+
+async function scanEvmChain(chatId: number, key: EvmKey, wallet: string, st: WatchState, known: string[]): Promise<PoisonFinding[]> {
+  const chain = EVM_CHAINS[key];
+  if ((watchBackoff.get(key) ?? 0) > Date.now()) return [];
+  const range = WATCH_RANGE[key] ?? 500;
+  try {
+    const head = Number(BigInt(await evmRpc(chain, "eth_blockNumber", [])));
+    if (!ALWAYS_WATCHED.includes(key)) {
+      // Other chains: only once the wallet has used them (checked every 30 min).
+      const a = st.active[key];
+      if (!a || Date.now() - a.at > 30 * 60_000) {
+        const [nonce, bal] = await Promise.all([evmRpc(chain, "eth_getTransactionCount", [wallet, "latest"]), erc20Balance(chain, chain.usdc, wallet).catch(() => 0n)]);
+        st.active[key] = { on: BigInt(nonce) > 0n || bal > 0n, at: Date.now() };
+      }
+      if (!st.active[key]!.on) { st.cursors[key] = head; return []; }
+    }
+    let cursor = st.cursors[key] ?? head - (key === "base" ? 1800 : 0); // first look: the last hour on Base
+    if (head - cursor > range * 200) cursor = head - range * WATCH_CHUNKS; // far behind (long downtime): catch up on the recent past only
+    const official = [chain.usdc.toLowerCase(), ...(OFFICIAL_EXTRA[key] ?? [])];
+    const transfers: Transfer[] = [];
+    const seen = new Set<string>();
+    const w = wallet.toLowerCase();
+    const pad = `0x${w.slice(2).padStart(64, "0")}`;
+    const addLog = (l: any) => {
+      if (l.topics?.[0] !== TRANSFER_TOPIC || l.topics.length !== 3) return; // ERC-721 transfers have 4 topics
+      const from = `0x${l.topics[1].slice(26)}`, to = `0x${l.topics[2].slice(26)}`;
+      if (from !== w && to !== w) return;
+      const id = `${l.transactionHash}:${l.logIndex}`;
+      if (seen.has(id)) return;
+      seen.add(id);
+      transfers.push({ token: String(l.address).toLowerCase(), from, to, value: BigInt(l.data && l.data !== "0x" ? l.data : "0x0"), txHash: l.transactionHash });
+    };
+    for (let i = 0; i < WATCH_CHUNKS && cursor < head; i++) {
+      const from = cursor + 1, to = Math.min(head, cursor + range);
+      const q = (topics: (string | null)[]) => logsRpc(key, "eth_getLogs", [{ address: official, fromBlock: `0x${from.toString(16)}`, toBlock: `0x${to.toString(16)}`, topics }]);
+      for (const l of [...(await q([TRANSFER_TOPIC, pad])), ...(await q([TRANSFER_TOPIC, null, pad]))]) addLog(l);
+      cursor = to;
+      await pause(400);
+    }
+    // Who signed? Only needed for transfers "from" the wallet, the ones a poisoner fakes. For those,
+    // read the whole receipt too: fake tokens sent in the same transaction show up there.
+    const senders = new Map<string, string>();
+    for (const t of [...transfers]) {
+      if (t.from !== w || senders.has(t.txHash)) continue;
+      senders.set(t.txHash, String((await logsRpc(key, "eth_getTransactionByHash", [t.txHash]))?.from ?? "").toLowerCase());
+      if (senders.get(t.txHash) && senders.get(t.txHash) !== w) for (const l of (await logsRpc(key, "eth_getTransactionReceipt", [t.txHash]))?.logs ?? []) addLog(l);
+    }
+    for (const t of transfers) if (t.from === w) t.txSender = senders.get(t.txHash) || undefined;
+    const infos = new Map<string, TokenInfo>();
+    for (const tk of new Set(transfers.filter((t) => t.txSender && t.txSender !== wallet.toLowerCase()).map((t) => t.token))) if (!official.includes(tk)) infos.set(tk, await evmTokenInfo(chain, tk));
+    st.cursors[key] = cursor;
+    return findPoisoning(transfers, { kind: "evm", wallet, known, official, tokenInfo: (t) => infos.get(t) });
+  } catch (e) {
+    console.error(`[watch ${key}]`, (e as Error).message);
+    watchBackoff.set(key, Date.now() + 10 * 60_000); // rate-limited or down: leave that chain alone for a while
+    return [];
+  }
+}
+
+async function scanSolana(wallet: string, st: WatchState, known: string[]): Promise<PoisonFinding[]> {
+  if ((watchBackoff.get("solana") ?? 0) > Date.now()) return [];
+  try {
+    const sigs: any[] = (await rpc("getSignaturesForAddress", [wallet, { limit: 15, ...(st.solUntil ? { until: st.solUntil } : {}) }])).result ?? [];
+    if (!sigs.length) return [];
+    const transfers: Transfer[] = [];
+    for (const s of [...sigs].reverse()) {
+      if (s.err) continue;
+      const tx = (await rpc("getTransaction", [s.signature, { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }])).result;
+      await pause(300);
+      if (!tx) continue;
+      const signer = tx.transaction?.message?.accountKeys?.find((k: any) => k.signer)?.pubkey;
+      const ixs = [...(tx.transaction?.message?.instructions ?? []), ...(tx.meta?.innerInstructions ?? []).flatMap((x: any) => x.instructions)];
+      for (const ix of ixs) {
+        const p = ix.parsed;
+        if (!p?.info) continue;
+        if (ix.program === "system" && p.type === "transfer" && p.info.destination === wallet) {
+          transfers.push({ token: "native", from: p.info.source, to: wallet, value: BigInt(p.info.lamports ?? 0), txHash: s.signature, txSender: signer });
+        } else if ((ix.program === "spl-token") && (p.type === "transfer" || p.type === "transferChecked") && p.info.authority && p.info.authority !== wallet && signer !== wallet) {
+          // Tokens arriving from someone else: the authority is the sender's wallet.
+          transfers.push({ token: p.info.mint ?? "spl", from: p.info.authority, to: wallet, value: BigInt(p.info.amount ?? p.info.tokenAmount?.amount ?? 0), txHash: s.signature, txSender: signer });
+        }
+      }
+    }
+    st.solUntil = sigs[0].signature;
+    return findPoisoning(transfers, { kind: "solana", wallet, known, official: [USDC_MINT], tokenInfo: () => undefined });
+  } catch (e) {
+    console.error("[watch solana]", (e as Error).message);
+    watchBackoff.set("solana", Date.now() + 10 * 60_000);
+    return [];
+  }
+}
+
+function plantedAlert(p: Planted): string {
+  const explorer = p.chain === "solana" ? `https://solscan.io/tx/${p.tx}` : `${EVM_CHAINS[p.chain as EvmKey].explorer}/tx/${p.tx}`;
+  const where = p.chain === "solana" ? "Solana" : EVM_CHAINS[p.chain as EvmKey].name;
+  const how = [
+    ...(p.reasons.includes("zero-value") ? ["a 0-value transfer that looks like it came from your wallet"] : []),
+    ...(p.reasons.includes("fake-token") ? [`a fake token named “${esc(p.fakeToken ?? "?")}” dressed up as a real stablecoin`] : []),
+    ...(!p.reasons.includes("zero-value") && !p.reasons.includes("fake-token") ? ["a tiny transfer from an address made to look familiar"] : []),
+  ];
+  return [
+    "🚨 <b>Scam alert: a fake transfer was planted in your wallet history</b>",
+    "",
+    `On ${where}, someone added ${how.join(" and ")}. The address involved:`,
+    p.original ? markDifference(p.address, p.original, p.kind) : `<code>${p.address}</code>`,
+    ...(p.original ? ["", "It's made to look like the address you really paid:", markDifference(p.original, p.address, p.kind)] : []),
+    "",
+    "Your wallet didn't sign this and none of your money moved. It's there so you copy the wrong address next time.",
+    "",
+    "👉 <b>Don't copy addresses from your transaction history.</b> Get them fresh from the person you're paying.",
+    "🛡 Blinkbox will now refuse to send to this address.",
+    `<a href="${explorer}">See the fake transaction</a>`,
+  ].join("\n");
+}
+
+async function watchUser(chatId: number) {
+  const st = watchState(chatId);
+  // Remember the wallet addresses so restarts don't need a PayBox round trip per user.
+  if (!st.evm) st.evm = (await evmWallet(chatId))?.address;
+  if (!st.sol) st.sol = (await wallet(chatId))?.address;
+  const known = knownAddresses(chatId);
+  const findings: { kind: AddressKind; chain: string; f: PoisonFinding }[] = [];
+  if (st.evm) {
+    const evmKnown = known.filter((k) => k.kind === "evm").map((k) => k.address);
+    for (const key of EVM_ORDER) for (const f of await scanEvmChain(chatId, key, st.evm, st, evmKnown)) findings.push({ kind: "evm", chain: key, f });
+  }
+  if (st.sol) for (const f of await scanSolana(st.sol, st, known.filter((k) => k.kind === "solana").map((k) => k.address))) findings.push({ kind: "solana", chain: "solana", f });
+  saveWatch(chatId, st);
+  for (const { kind, chain, f } of findings) {
+    if (plantedMatch(chatId, kind, f.address)) continue; // already warned about this one
+    const p: Planted = { kind, address: f.address, original: f.original, chain, tx: f.txHash, reasons: f.reasons, fakeToken: f.fakeToken, t: Date.now() };
+    writeFileSync(plantedFile(chatId), JSON.stringify([p, ...plantedAddresses(chatId)].slice(0, 500)), { mode: 0o600 });
+    console.log(`[watch] planted ${kind} address found for a user on ${chain} (${f.reasons.join(", ")})`);
+    await send(chatId, plantedAlert(p), [MENU_BUTTON()]);
+  }
+}
+
+function startPoisonWatch() {
+  const tick = async () => {
+    try {
+      for (const id of existsSync(join(DATA, "users")) ? readdirSync(join(DATA, "users")) : []) {
+        const chatId = Number(id);
+        if (!Number.isFinite(chatId) || !linkState(chatId).canSign) continue;
+        await watchUser(chatId).catch((e) => console.error("[watch]", (e as Error).message));
+      }
+    } finally {
+      setTimeout(tick, WATCH_EVERY_MS);
+    }
+  };
+  setTimeout(tick, 30_000); // let the bot settle after a restart first
+}
+
 // ---------- Main loop ----------
 
 async function main() {
   mkdirSync(join(DATA, "users"), { recursive: true, mode: 0o700 });
+  startPoisonWatch();
   const me = await tg("getMe", {});
   console.log(`Blinkbox bot running as @${me?.username}`);
   await tg("setMyCommands", { commands: [

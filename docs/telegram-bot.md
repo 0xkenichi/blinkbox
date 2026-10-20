@@ -25,6 +25,8 @@ This is how I run [@BlinkboxPaybot](https://t.me/BlinkboxPaybot): one small Linu
     payout.json          their saved cash-out account
     recipients.json      bank accounts they've paid before
     known.json           wallet addresses they've sent to (for lookalike checks)
+    watch.json           where the poisoning watcher got to on each chain
+    planted.json         scam addresses found in their history (Guard refuses these)
 ```
 
 Each user links their own PayBox account with `/connect`: a device login, then pairing a signing key that PayBox controls. Blinkbox never sees a wallet private key. Every signature goes through PayBox under that user's approval rules, and they can revoke Blinkbox in the PayBox app under **Agents**.
