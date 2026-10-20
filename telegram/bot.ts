@@ -3,8 +3,8 @@
 // signing-key pairing); every transaction is confirmed in chat and goes
 // through PayBox wallet signing under that user's approval settings.
 import { spawn } from "node:child_process";
-import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { createHash, randomBytes } from "node:crypto";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -160,6 +160,7 @@ async function connect(chatId: number) {
     });
     if (code !== 0 || !linkState(chatId).canSign) return send(chatId, "⚠️ Signing wasn't paired. Send /connect to try again.");
     const w = await wallet(chatId);
+    track(chatId, "connect");
     await send(chatId, `✅ <b>Connected!</b>${w ? `\nWallet: <code>${w.address}</code>` : ""}\n\n🪪 Tip: link your @username in /handles so friends can pay you without your address.`);
     return menu(chatId);
   } finally {
@@ -278,7 +279,7 @@ async function build(chatId: number, url: string, index: number | null, inputs: 
 }
 
 type Builder = () => Promise<Built | string>;
-type Extra = { lines?: string[]; again?: boolean; afterSend?: (chatId: number, signature: string) => Promise<unknown>; then?: (chatId: number) => Promise<unknown> };
+type Extra = { lines?: string[]; again?: boolean; kind?: string; afterSend?: (chatId: number, signature: string) => Promise<unknown>; then?: (chatId: number) => Promise<unknown> };
 
 function preview(chatId: number, url: string, index: number | null, inputs: Record<string, string>) {
   return previewWith(chatId, () => build(chatId, url, index, inputs));
@@ -334,7 +335,7 @@ async function executeWith(chatId: number, builder: Builder, extra: Extra = {}):
   if (!signed) return send(chatId, `⚠️ PayBox did not return a signed transaction (status: ${esc(String(r?.status))}). Nothing was sent.`, [MENU_BUTTON()]);
   const sig = await broadcast(signed);
   if (!sig.ok) return problem(chatId, `⚠️ ${esc(humanize(sig.error, await solBalance(w.address)))}\nNothing was sent.`);
-  recordSpend(chatId, g.fp, g.usd);
+  recordSpend(chatId, g.fp, g.usd, extra.kind ?? `solana:${built.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 24)}`);
   const done = await confirm(sig.signature);
   const link = `https://solscan.io/tx/${sig.signature}`;
   await send(chatId, done === "confirmed" ? `✅ <b>Confirmed on Solana mainnet</b>` : done === "failed" ? "❌ The transaction failed on-chain." : "⏳ Sent. Confirmation is taking a while; check the link.", [[{ text: "View on Solscan", url: link }], ...(extra.then ? [] : [MENU_BUTTON()])]);
@@ -488,10 +489,11 @@ async function guard(chatId: number, built: Built, owner: string): Promise<Guard
   return { usd: value, fp, lines, duplicateMinutes: last ? Math.max(1, Math.round((Date.now() - last.t) / 60_000)) : undefined };
 }
 
-function recordSpend(chatId: number, fp: string, value: number | null) {
+function recordSpend(chatId: number, fp: string, value: number | null, kind = "tx") {
   const g = guardState(chatId);
   g.history.push({ t: Date.now(), usd: value ?? 0, fp });
   saveGuard(chatId, g);
+  track(chatId, "tx", { kind, usd: value ?? undefined });
 }
 
 function guardSettings(chatId: number): Promise<unknown> {
@@ -765,6 +767,7 @@ async function buyPlace(chatId: number, q: Quote, address: string, extra: { kyc?
   if (!ramp.test) {
     watchOrder(chatId, async () => {
       const s = await ramp.buyStatus(o);
+      if (s.status === "delivered") track(chatId, "tx", { kind: `naira-buy:${s.quote.network}`, usd: s.quote.usdc });
       if (s.status === "delivered") return { done: true, message: `✅ <b>${s.quote.usdc} USDC arrived</b> in your ${s.quote.network === "base" ? "Base" : "Solana"} wallet.${s.signature ? `\n${s.quote.network === "base" ? "https://basescan.org/tx/" : "https://solscan.io/tx/"}${s.signature}` : ""}` };
       if (s.status === "expired") return { done: true, message: `⌛ The payment window for order <code>${esc(o.id)}</code> closed. If you already paid, Paycrest refunds your refund account.` };
       if (s.status === "failed") return { done: true, message: `⚠️ Order <code>${esc(o.id)}</code> was refunded${s.detail ? ` (${esc(s.detail)})` : ""}. Pay from an account in your own name.` };
@@ -883,6 +886,7 @@ async function cashoutCreate(chatId: number, q: Quote, p: Payout, address: strin
   if (!isPublicKey(o.depositAddress)) return send(chatId, "⚠️ Paycrest returned an invalid deposit address. Nothing was sent.", [MENU_BUTTON()]);
   // Same signing pipeline as every other transaction, to this order's one-time deposit address.
   return previewWith(chatId, () => build(chatId, "https://solana-sbl.dial.to/api/v0/transfer/USDC", 0, { to: o.depositAddress, amount: String(o.amountToTransfer) }), {
+    kind: q.ngnExact ? "pay-bank" : "cashout",
     lines: [`• ${q.ngnExact ? "Payment" : "Cash-out"} to ${payoutLine(p)}: <b>${naira(q.ngn)}</b>`, `• Includes Paycrest's network fee: ${round6(o.amountToTransfer - q.usdc)} USDC`],
     afterSend: async (cid) => {
       await send(cid, `⏳ USDC sent. Paycrest is paying ${naira(q.ngn)} to ${payoutLine(p)}…`);
@@ -1035,6 +1039,7 @@ function matchBank(banks: Bank[], typed: string): Bank | undefined {
 
 async function onPhoto(chatId: number, fileId: string, caption?: string): Promise<unknown> {
   if (!linkState(chatId).canSign) return needLink(chatId);
+  track(chatId, "photo");
   if (!GROQ_KEY()) return send(chatId, "📷 Reading bank details from photos switches on very soon. For now, tap <b>Pay a bank account</b> and type the details.", [[button("🏧 Pay a bank account", (cid) => payBankStart(cid))], MENU_BUTTON()]);
   await tg("sendChatAction", { chat_id: chatId, action: "typing" });
   let found: Awaited<ReturnType<typeof readBankDetails>>;
@@ -1171,6 +1176,7 @@ const num = (v: unknown) => { const n = Number(String(v ?? "").replace(/[^\d.]/g
 
 async function onVoice(chatId: number, fileId: string, seconds = 0): Promise<unknown> {
   if (!linkState(chatId).canSign) return needLink(chatId);
+  track(chatId, "voice");
   if (!GROQ_KEY()) return send(chatId, "🎙 Voice notes switch on very soon. For now, use the buttons below.", [MENU_BUTTON()]);
   if (seconds > VOICE_MAX_SECONDS) return send(chatId, `🎙 Keep voice notes under ${VOICE_MAX_SECONDS} seconds: one request at a time works best.`, [MENU_BUTTON()]);
   await tg("sendChatAction", { chat_id: chatId, action: "typing" });
@@ -1470,7 +1476,7 @@ async function executeEvm(chatId: number, key: EvmKey, to: string, amount: numbe
   if (g.refused) return send(chatId, `⛔ <b>Blocked by Guard</b>\n${esc(g.refused)}\n\nNothing was sent.`, [MENU_BUTTON()]);
   if (g.duplicateMinutes && !again) return previewEvm(chatId, key, to, amount);
   const r = await runEvm(chatId, chain, w, b);
-  if (r.hashes.length) recordSpend(chatId, g.fp, g.usd);
+  if (r.hashes.length) recordSpend(chatId, g.fp, g.usd, `send:${chain.key}`);
   const links = r.hashes.length ? [[evmLink(chain, r.hashes[r.hashes.length - 1]!)]] : [];
   if (r.status === "confirmed") return send(chatId, `✅ <b>Confirmed on ${chain.name}</b>\n${amount} ${chain.stable} sent to <code>${shortEvm(to)}</code>`, [...links, MENU_BUTTON()]);
   return send(chatId, `${r.status === "pending" ? "⏳" : "⚠️"} ${esc(r.stopped ?? "Not confirmed.")}${r.hashes.length ? "" : "\nNothing was sent."}`, [...links, MENU_BUTTON()]);
@@ -1582,7 +1588,7 @@ async function bridgePreview(chatId: number, from: BridgeSide, to: BridgeSide, a
   ];
   if (from === "solana") {
     // Solana side: LI.FI hands back a full transaction, which goes through the usual Solana Guard and preview.
-    return previewWith(chatId, () => lifiSolanaBuilt(chatId, from, to, amount), { lines: lines.slice(2), afterSend: (cid, sig) => watchBridge(cid, from, to, sig) });
+    return previewWith(chatId, () => lifiSolanaBuilt(chatId, from, to, amount), { lines: lines.slice(2), kind: `bridge:solana-${to}`, afterSend: (cid, sig) => watchBridge(cid, from, to, sig) });
   }
   const chain = EVM_CHAINS[from];
   const calls = await lifiEvmCalls(chain, w.fromAddress!, q).catch((e) => `Couldn't check the route: ${(e as Error).message}`);
@@ -1635,7 +1641,7 @@ async function bridgeExecute(chatId: number, from: BridgeSide, to: BridgeSide, a
   if (g.refused) return send(chatId, `⛔ <b>Blocked by Guard</b>\n${esc(g.refused)}\n\nNothing was sent.`, [MENU_BUTTON()]);
   if (g.duplicateMinutes && !again) return bridgePreview(chatId, from, to, amount);
   const res = await runEvm(chatId, chain, (await evmWallet(chatId))!, b);
-  if (res.hashes.length) recordSpend(chatId, g.fp, g.usd);
+  if (res.hashes.length) recordSpend(chatId, g.fp, g.usd, `bridge:${from}-${to}`);
   const last = res.hashes[res.hashes.length - 1];
   if (res.status !== "confirmed" || !last) return send(chatId, `⚠️ ${esc(res.stopped ?? "Not confirmed.")}${res.hashes.length ? "" : "\nNothing was sent."}`, [...(last ? [[evmLink(chain, last)]] : []), MENU_BUTTON()]);
   await send(chatId, `✅ <b>Sent from ${chain.name}.</b> Now bridging to ${sideName(to)}; I'll message you when it lands.`, [[evmLink(chain, last)]]);
@@ -1802,7 +1808,7 @@ async function baseSwapExecute(chatId: number, fromToken: string, toToken: strin
   if (g.refused) return send(chatId, `⛔ <b>Blocked by Guard</b>\n${esc(g.refused)}\n\nNothing was sent.`, [MENU_BUTTON()]);
   if (g.duplicateMinutes && !again) return baseSwapPreview(chatId, fromToken, toToken, units, usdAmount, info);
   const res = await runEvm(chatId, chain, r.w, b);
-  if (res.hashes.length) recordSpend(chatId, g.fp, g.usd);
+  if (res.hashes.length) recordSpend(chatId, g.fp, g.usd, info.buy ? "base-buy" : "base-sell");
   const last = res.hashes[res.hashes.length - 1];
   if (res.status === "confirmed" && info.buy) saveBaseToken(chatId, { address: info.buy.address, symbol: info.buy.symbol });
   if (res.status === "confirmed") return send(chatId, `✅ <b>Swapped on Base.</b> ${info.buy ? `${esc(info.buy.symbol)} is in your wallet; sell it any time from 🔥 Hot tokens → 🔵 Base.` : ""}`, [...(last ? [[evmLink(chain, last)]] : []), MENU_BUTTON()]);
@@ -2527,7 +2533,8 @@ async function onMessage(chatId: number, text: string) {
   }
   const [cmd = "", ...args] = text.trim().split(/\s+/);
   switch (cmd.split("@")[0]!.toLowerCase()) {
-    case "/start": return send(chatId, HELP).then(() => menu(chatId));
+    case "/start": track(chatId, "start"); return send(chatId, HELP).then(() => menu(chatId));
+    case "/stats": if (isOwner(chatId)) return statsScreen(chatId); return menu(chatId);
     case "/help": return send(chatId, HELP);
     case "/menu": return menu(chatId);
     case "/connect": return connect(chatId);
@@ -2554,6 +2561,94 @@ async function onMessage(chatId: number, text: string) {
   const link = text.match(/(solana-action:|blink:)?https?:\/\/\S+/)?.[0];
   if (link) return inspect(chatId, link);
   return menu(chatId);
+}
+
+// ---------- Usage stats: owner only, anonymized ----------
+// Counts only. People are stored as a salted hash: no chat ids, names, addresses or bank details.
+// /stats answers only OWNER_CHAT_ID; for everyone else it behaves like an unknown command.
+
+const OWNER = () => Number(process.env.OWNER_CHAT_ID ?? readEnvFile().OWNER_CHAT_ID ?? 0);
+const isOwner = (chatId: number) => OWNER() > 0 && chatId === OWNER();
+const STATS_DIR = join(DATA, "stats");
+const EVENTS_FILE = join(STATS_DIR, "events.jsonl");
+type StatEvent = { t: number; u: string; e: "seen" | "start" | "connect" | "tx" | "photo" | "voice"; kind?: string; usd?: number };
+
+let statsSalt = "";
+function anon(chatId: number) {
+  if (!statsSalt) {
+    mkdirSync(STATS_DIR, { recursive: true, mode: 0o700 });
+    const f = join(STATS_DIR, "salt");
+    if (!existsSync(f)) writeFileSync(f, randomBytes(16).toString("hex"), { mode: 0o600 });
+    statsSalt = readFileSync(f, "utf8").trim();
+  }
+  return createHash("sha256").update(`${statsSalt}|${chatId}`).digest("hex").slice(0, 12);
+}
+
+function readEvents(): StatEvent[] {
+  try { return readFileSync(EVENTS_FILE, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)); } catch { return []; }
+}
+
+const seenDay = new Map<string, string>();
+function track(chatId: number, e: StatEvent["e"], extra: { kind?: string; usd?: number } = {}) {
+  if (isOwner(chatId)) return; // your own use isn't counted
+  try {
+    const u = anon(chatId);
+    if (e === "seen") {
+      const day = new Date().toISOString().slice(0, 10);
+      if (seenDay.get(u) === day) return;
+      seenDay.set(u, day);
+    }
+    const first = (e === "connect" || e === "tx") && !readEvents().some((x) => x.u === u && x.e === e);
+    appendFileSync(EVENTS_FILE, `${JSON.stringify({ t: Date.now(), u, e, ...extra })}\n`, { mode: 0o600 });
+    if (first && OWNER()) {
+      const people = new Set(readEvents().filter((x) => x.e === "connect").map((x) => x.u)).size;
+      void send(OWNER(), e === "connect"
+        ? `🆕 <b>Someone new connected a PayBox wallet.</b> That's ${people} ${people === 1 ? "person" : "people"} besides you since tracking began. /stats`
+        : `💸 <b>A user made their first transaction:</b> ${esc(extra.kind ?? "tx")}${extra.usd ? `, about ${usd(extra.usd)}` : ""}. /stats`);
+    }
+  } catch (err) {
+    console.error("[stats]", (err as Error).message);
+  }
+}
+
+function connectedWallets(): number {
+  // Everyone who finished /connect, counted from disk so it includes people from before tracking began.
+  let n = 0;
+  for (const id of existsSync(join(DATA, "users")) ? readdirSync(join(DATA, "users")) : []) {
+    if (Number(id) === OWNER()) continue;
+    try { if (JSON.parse(readFileSync(join(DATA, "users", id, "config.json"), "utf8")).signingKey) n++; } catch { /* not linked */ }
+  }
+  return n;
+}
+
+function statsScreen(chatId: number): Promise<unknown> {
+  const ev = readEvents();
+  const now = Date.now(), DAY = 86_400_000;
+  const people = (es: StatEvent[]) => new Set(es.map((x) => x.u)).size;
+  const since = (ms: number) => ev.filter((x) => now - x.t < ms);
+  const txs = (es: StatEvent[]) => es.filter((x) => x.e === "tx");
+  const vol = (es: StatEvent[]) => txs(es).reduce((a, x) => a + (x.usd ?? 0), 0);
+  const byKind = new Map<string, { n: number; usd: number }>();
+  for (const x of txs(ev)) {
+    const k = (x.kind ?? "tx").split(":")[0]!;
+    const b = byKind.get(k) ?? { n: 0, usd: 0 };
+    b.n++; b.usd += x.usd ?? 0; byKind.set(k, b);
+  }
+  const d7 = since(7 * DAY), d1 = since(DAY);
+  return send(chatId, [
+    "📊 <b>Blinkbox stats</b> (not counting you)",
+    "",
+    `👛 Connected wallets: <b>${connectedWallets()}</b>`,
+    `👥 People who used the bot: <b>${people(ev)}</b>`,
+    `🟢 Active today: <b>${people(d1)}</b> · this week: <b>${people(d7)}</b>`,
+    `🆕 New connects this week: <b>${people(d7.filter((x) => x.e === "connect"))}</b>`,
+    "",
+    `💸 Transactions: <b>${txs(ev).length}</b> (${usd(vol(ev))}) · this week ${txs(d7).length} (${usd(vol(d7))})`,
+    ...[...byKind.entries()].sort((a, b) => b[1].n - a[1].n).map(([k, b]) => `   • ${esc(k)}: ${b.n} · ${usd(b.usd)}`),
+    `📷 Photos: ${ev.filter((x) => x.e === "photo").length} · 🎙 Voice notes: ${ev.filter((x) => x.e === "voice").length}`,
+    "",
+    `<i>Tracking since ${ev[0] ? new Date(ev[0].t).toISOString().slice(0, 10) : "now"}. Anonymous counts only. Only you can see this.</i>`,
+  ].join("\n"), [[button("🔄 Refresh", (cid) => (isOwner(cid) ? statsScreen(cid) : menu(cid)))], MENU_BUTTON()]);
 }
 
 // ---------- Main loop ----------
@@ -2602,7 +2697,7 @@ async function main() {
       const handle = async () => {
         const from = u.message?.from ?? u.callback_query?.from;
         const chat = u.message?.chat?.id ?? u.callback_query?.message?.chat?.id;
-        if (from && chat && from.id === chat) noteUser(chat, from.username);
+        if (from && chat && from.id === chat) { noteUser(chat, from.username); track(chat, "seen"); }
         if (u.message?.photo?.length && u.message.chat.id === from?.id) {
           const best = u.message.photo[u.message.photo.length - 1];
           await onPhoto(u.message.chat.id, best.file_id, u.message.caption);

@@ -18,6 +18,7 @@ This is how I run [@BlinkboxPaybot](https://t.me/BlinkboxPaybot): one small Linu
 ~/.blinkbox-bot/         data (chmod 700)
   .env                   secrets, see telegram/.env.example (chmod 600)
   directory.json         linked @handles → chat ids
+  stats/events.jsonl     anonymous usage events (salted user hashes, counts and dollar amounts only)
   users/<chat id>/       one folder per user (chmod 700)
     config.json          that user's PayBox CLI session and paired signing key
     guard.json           their limits and recent spend
@@ -51,6 +52,10 @@ journalctl -u blinkbox-bot -f
 ```
 
 After that, a deploy is just the `scp` of `dist/bot.mjs` plus `sudo systemctl restart blinkbox-bot`.
+
+## Knowing who uses it
+
+Set `OWNER_CHAT_ID` to your own Telegram chat id. Then `/stats` shows connected wallets, active users, and transactions by type and dollar volume, and the bot pings you when someone new connects or makes their first transaction. Anyone else who sends `/stats` just gets the menu. Users are logged as salted hashes, never names, addresses or bank details, and your own activity isn't counted.
 
 ## Small-VM tips
 
