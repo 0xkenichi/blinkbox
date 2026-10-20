@@ -114,7 +114,7 @@ Without a Paycrest key the naira flows run in test mode: real rates, real bank l
 - Paycrest supports Solana and Base for naira, not Arc yet. To get USDC onto Arc, withdraw from an exchange that supports Arc or bridge with Circle's CCTP.
 - EVM chains other than Arc need a little of their gas token (ETH, POL, BNB, AVAX, HYPE). Arc takes its fees in USDC, so USDC alone is enough there.
 - Bridges and EVM swaps are built, Guard-checked and simulated against mainnet, but I haven't pushed a live one through PayBox yet. Solana sends, swaps and the naira flows have real mainnet receipts above.
-- Photo-to-pay (snap a bank detail, pay it) is built and waiting on a vision API key.
+- Photo-to-pay (snap someone's bank details, pay them) and voice notes ("send 5 USDC to @tunde") are built and switch on with a Groq API key. Both only fill in the form: you still see the preview and tap Confirm.
 
 ## Security
 
