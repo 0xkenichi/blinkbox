@@ -14,6 +14,7 @@ import {
 } from "../src/blinks.js";
 import { findBlinks } from "../src/catalog.js";
 import { guardInstructions, guardRefusal } from "../src/guard.js";
+import { lookalikeOf, markDifference, type AddressKind } from "../src/lookalike.js";
 import { maskAccount, naira, parseNaira, POPULAR_BANKS, rampProvider, type Bank, type BuyerKyc, type BuyOrder, type Payout, type Quote, type RampNetwork, type SellOrder } from "./ramp.js";
 import { isPublicKey, parseTransaction, payboxIncompatibility, summarize } from "../src/solana.js";
 
@@ -279,7 +280,7 @@ async function build(chatId: number, url: string, index: number | null, inputs: 
 }
 
 type Builder = () => Promise<Built | string>;
-type Extra = { lines?: string[]; again?: boolean; kind?: string; afterSend?: (chatId: number, signature: string) => Promise<unknown>; then?: (chatId: number) => Promise<unknown> };
+type Extra = { lines?: string[]; again?: boolean; kind?: string; recipient?: string; afterSend?: (chatId: number, signature: string) => Promise<unknown>; then?: (chatId: number) => Promise<unknown> };
 
 function preview(chatId: number, url: string, index: number | null, inputs: Record<string, string>) {
   return previewWith(chatId, () => build(chatId, url, index, inputs));
@@ -335,6 +336,7 @@ async function executeWith(chatId: number, builder: Builder, extra: Extra = {}):
   if (!signed) return send(chatId, `⚠️ PayBox did not return a signed transaction (status: ${esc(String(r?.status))}). Nothing was sent.`, [MENU_BUTTON()]);
   const sig = await broadcast(signed);
   if (!sig.ok) return problem(chatId, `⚠️ ${esc(humanize(sig.error, await solBalance(w.address)))}\nNothing was sent.`);
+  if (extra.recipient) rememberAddress(chatId, "solana", extra.recipient);
   recordSpend(chatId, g.fp, g.usd, extra.kind ?? `solana:${built.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 24)}`);
   const done = await confirm(sig.signature);
   const link = `https://solscan.io/tx/${sig.signature}`;
@@ -531,6 +533,42 @@ async function recipientProblem(address: string): Promise<{ block?: string; note
   const token = ["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"].includes(info.owner);
   if (token) return { block: "That address is a token mint or token account, not a wallet. Paste the person's wallet address instead." };
   return {};
+}
+
+// ---------- Lookalike addresses (address poisoning) ----------
+// Every address you send to is remembered. A new address that starts and ends like one of
+// those, or like your own wallet, but differs in the middle is blocked before anything is built.
+
+type KnownAddress = { kind: AddressKind; address: string; t: number };
+const knownFile = (chatId: number) => join(userDir(chatId), "known.json");
+function knownAddresses(chatId: number): KnownAddress[] {
+  try { return JSON.parse(readFileSync(knownFile(chatId), "utf8")); } catch { return []; }
+}
+function rememberAddress(chatId: number, kind: AddressKind, address: string) {
+  const same = (a: string) => (kind === "evm" ? a.toLowerCase() === address.toLowerCase() : a === address);
+  const list = [{ kind, address, t: Date.now() }, ...knownAddresses(chatId).filter((k) => !(k.kind === kind && same(k.address)))].slice(0, 200);
+  mkdirSync(userDir(chatId), { recursive: true, mode: 0o700 });
+  writeFileSync(knownFile(chatId), JSON.stringify(list), { mode: 0o600 });
+}
+
+async function lookalikeCheck(chatId: number, kind: AddressKind, address: string): Promise<{ original: string; html: string } | undefined> {
+  const own = kind === "solana" ? (await wallet(chatId))?.address : (await evmWallet(chatId))?.address;
+  const known = knownAddresses(chatId).filter((k) => k.kind === kind).map((k) => k.address);
+  const original = lookalikeOf(address, [...known, ...(own ? [own] : [])], kind);
+  if (!original) return undefined;
+  const isOwn = !!own && original.toLowerCase() === own.toLowerCase();
+  return {
+    original,
+    html: [
+      "⛔ <b>Blocked by Guard: lookalike address</b>",
+      `This address starts and ends like ${isOwn ? "your own wallet" : "one you've paid before"}, but the middle is different.`,
+      "",
+      `You entered:\n${markDifference(address, original, kind)}`,
+      `${isOwn ? "Your wallet" : "You paid before"}:\n${markDifference(original, address, kind)}`,
+      "",
+      "This is a scam called <b>address poisoning</b>: fake transfers to a lookalike address get planted in your history so you copy it by mistake. Always get the address fresh from the person you're paying. Nothing was sent.",
+    ].join("\n"),
+  };
 }
 
 // ---------- Top up ----------
@@ -1424,6 +1462,8 @@ function sendToEvm(chatId: number, key: EvmKey): Promise<unknown> {
   return ask(chatId, `📬 Paste the <b>0x… address</b> on <b>${chain.name}</b> to send ${chain.stable} to:`, async (text) => {
     const to = text.trim();
     if (!isEvmAddress(to)) return send(chatId, `That isn't a ${chain.name} address. It should start with 0x and be 42 characters long.`, [[button("Try again", (cid) => sendToEvm(cid, key))], MENU_BUTTON()]);
+    const look = await lookalikeCheck(chatId, "evm", to);
+    if (look) return send(chatId, look.html, [[button(`✅ Use ${shortEvm(look.original)} (the one I paid)`, () => amountPicker(chatId, chain.stable, `${chain.icon} Send ${chain.stable} on ${chain.name} to <code>${shortEvm(look.original)}</code>`, (amount) => previewEvm(chatId, key, look.original, Number(amount))))], [button("Try another address", (cid) => sendToEvm(cid, key))], MENU_BUTTON()]);
     return amountPicker(chatId, chain.stable, `${chain.icon} Send ${chain.stable} on ${chain.name} to <code>${shortEvm(to)}</code>`, (amount) => previewEvm(chatId, key, to, Number(amount)));
   });
 }
@@ -1444,6 +1484,8 @@ async function previewEvm(chatId: number, key: EvmKey, to: string, amount: numbe
   const w = await evmWallet(chatId);
   if (!w) return send(chatId, "No EVM wallet is shared with Blinkbox. In PayBox, allow your EVM wallet for Blinkbox, or tap Wallet → Disconnect and Connect again.", [MENU_BUTTON()]);
   await tg("sendChatAction", { chat_id: chatId, action: "typing" });
+  const look = await lookalikeCheck(chatId, "evm", to);
+  if (look) return send(chatId, look.html, [[button(`✅ Send to ${shortEvm(look.original)} instead`, (cid) => previewEvm(cid, key, look.original, amount))], MENU_BUTTON()]);
   const b = await buildEvmSend(chain, w.address, to, amount);
   if (typeof b === "string") return problem(chatId, `⚠️ ${esc(b)}`);
   const g = await evmGuard(chatId, chain, to, amount);
@@ -1469,6 +1511,7 @@ async function executeEvm(chatId: number, key: EvmKey, to: string, amount: numbe
   const chain = EVM_CHAINS[key];
   const w = await evmWallet(chatId);
   if (!w) return send(chatId, "No EVM wallet is shared with Blinkbox.", [MENU_BUTTON()]);
+  if (await lookalikeCheck(chatId, "evm", to)) return previewEvm(chatId, key, to, amount);
   // Rebuild so nonce and fees are fresh at the moment of signing.
   const b = await buildEvmSend(chain, w.address, to, amount);
   if (typeof b === "string") return problem(chatId, `⚠️ ${esc(b)}`);
@@ -1477,6 +1520,7 @@ async function executeEvm(chatId: number, key: EvmKey, to: string, amount: numbe
   if (g.duplicateMinutes && !again) return previewEvm(chatId, key, to, amount);
   const r = await runEvm(chatId, chain, w, b);
   if (r.hashes.length) recordSpend(chatId, g.fp, g.usd, `send:${chain.key}`);
+  if (r.status === "confirmed") rememberAddress(chatId, "evm", to);
   const links = r.hashes.length ? [[evmLink(chain, r.hashes[r.hashes.length - 1]!)]] : [];
   if (r.status === "confirmed") return send(chatId, `✅ <b>Confirmed on ${chain.name}</b>\n${amount} ${chain.stable} sent to <code>${shortEvm(to)}</code>`, [...links, MENU_BUTTON()]);
   return send(chatId, `${r.status === "pending" ? "⏳" : "⚠️"} ${esc(r.stopped ?? "Not confirmed.")}${r.hashes.length ? "" : "\nNothing was sent."}`, [...links, MENU_BUTTON()]);
@@ -2054,11 +2098,17 @@ async function cmdSend(chatId: number, args: string[]) {
   const t = token.toUpperCase();
   if (looksLikeHandle(to)) {
     return resolveHandle(chatId, to, (address, label, recipientChat) => previewWith(chatId, () => build(chatId, `https://solana-sbl.dial.to/api/v0/transfer/${encodeURIComponent(t)}`, 0, { to: address, amount }), {
+      recipient: address,
       lines: [`• To: <b>${esc(label)}</b> · <code>${address}</code>`],
       afterSend: (cid, sig) => notifyRecipient(recipientChat, cid, amount, t, sig),
     }));
   }
-  return preview(chatId, `https://solana-sbl.dial.to/api/v0/transfer/${encodeURIComponent(token.toUpperCase())}`, 0, { to, amount });
+  const sendNow = (addr: string) => previewWith(chatId, () => build(chatId, `https://solana-sbl.dial.to/api/v0/transfer/${encodeURIComponent(t)}`, 0, { to: addr, amount }), { recipient: addr });
+  if (isPublicKey(to)) {
+    const look = await lookalikeCheck(chatId, "solana", to);
+    if (look) return send(chatId, look.html, [[button(`✅ Send to ${look.original.slice(0, 4)}…${look.original.slice(-4)} instead`, () => sendNow(look.original))], MENU_BUTTON()]);
+  }
+  return sendNow(to);
 }
 
 // ---------- Jupiter helpers ----------
@@ -2428,6 +2478,7 @@ async function sendTo(chatId: number, token: string): Promise<unknown> {
   const w = await wallet(chatId);
   const pick = (to: string, note?: string, who?: { label: string; chat: number }) => amountPicker(chatId, token, `💸 Send to ${who ? `<b>${esc(who.label)}</b>` : `<code>${to.slice(0, 4)}…${to.slice(-4)}</code>`}`, (amount) =>
     previewWith(chatId, () => build(chatId, `https://solana-sbl.dial.to/api/v0/transfer/${token}`, 0, { to, amount }), {
+      recipient: to,
       lines: [`• To: ${who ? `<b>${esc(who.label)}</b> · ` : ""}<code>${to}</code>`, ...(note ? [note] : [])],
       ...(who ? { afterSend: (cid: number, sig: string) => notifyRecipient(who.chat, cid, amount, token, sig) } : {}),
     }));
@@ -2441,6 +2492,8 @@ async function sendTo(chatId: number, token: string): Promise<unknown> {
       });
     }
     if (!isPublicKey(to)) return send(chatId, "That doesn't look like a Solana address.", [[button("Try again", (cid) => sendTo(cid, token))], MENU_BUTTON()]);
+    const look = await lookalikeCheck(chatId, "solana", to);
+    if (look) return send(chatId, look.html, [[button(`✅ Use ${look.original.slice(0, 4)}…${look.original.slice(-4)} (the one I paid)`, () => pick(look.original))], [button("Try another address", (cid) => sendTo(cid, token))], MENU_BUTTON()]);
     const check = await recipientProblem(to);
     if (check.block) return send(chatId, `⛔ <b>Blocked by Guard</b>\n${esc(check.block)}`, [[button("Try another address", (cid) => sendTo(cid, token))], MENU_BUTTON()]);
     return pick(to, check.note);
